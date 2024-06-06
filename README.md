@@ -106,6 +106,50 @@ export const BookSchema = SchemaFactory.createForClass(Book);
 ***HydratedDocument<Book>*** rappresenta un documento Book di Mongoose completamente funzionale, che include sia le proprietà del modello Book che i metodi e le funzionalità di Mongoose per l'interazione con il database.
 https://docs.nestjs.com/techniques/mongodb
 
+## Importare MongooseModule
+L'import dello Schema e della classe Book viene utilizzato per definire uno schema Mongoose per l'entità Book all'interno dell'applicazione.
+In questo caso lo scope dell'importazione di Book sarà solo interno a BookModule.
+Dobbiamo esportarlo e importarlo per renderlo disponibile altrove
+
+***src/resources/book/book.module.ts***
+```ts
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose'; // Importiamo MongooseModule
+import { BookService } from './book.service';
+import { BookController } from './book.controller';
+import { Book, BookSchema } from './schemas/book.schema'; // Importiamo lo Schema
+
+@Module({
+  // Importa il modulo MongooseModule e definisce uno schema per l'entità Book, utilizzando il nome e lo schema forniti.
+  imports: [
+    MongooseModule.forFeature([{ name: Book.name, schema: BookSchema }]),
+  ],
+
+  controllers: [BookController],
+  providers: [BookService],
+
+  // Se volessimo esportare MongooseModule di Book per renderlo disponibile altrove.
+  // exports: [MongooseModule.forFeature([{ name: Book.name, schema: BookSchema }])],
+})
+export class BookModule {}
+```
+
+Importando BookModule in un altro modulo avremo disponibli le esportazioni dichiarate:
+```ts
+// ESEMPIO
+import { Module } from '@nestjs/common';
+import { BookModule } from './book.module';
+
+@Module({
+  imports: [
+    BookModule, // Importa BookMule, che include il MongooseModule
+    // Ecc
+  ],
+  // Ecc
+})
+export class EsempioModule {}
+```
+
 ## DTO
 Un DTO è un Data Transfer Object utilizzato per trasferire dati tra servizi o risorse. 
 Un DTO è un oggetto che definisce come i dati verranno inviati sulla rete.
