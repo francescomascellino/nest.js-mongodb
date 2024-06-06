@@ -3,7 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
-import { Book } from './schemas/book.schema';
+import { Book, BookDocument } from './schemas/book.schema';
 
 @Injectable()
 export class BookService {
@@ -17,7 +17,7 @@ export class BookService {
     return await newBook.save();
   }
 
-  async findAll(): Promise<Book[]> {
+  async findAll(): Promise<BookDocument[]> {
     console.log('Find all Books');
 
     const books = await this.bookModel.find().exec();
@@ -25,7 +25,7 @@ export class BookService {
     return books;
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<BookDocument> {
     console.log(`Find One. Book ID: ${id}`);
 
     const book = await this.bookModel.findById(id).exec();
@@ -39,7 +39,10 @@ export class BookService {
     return book;
   }
 
-  async update(id: string, updateBookDto: UpdateBookDto): Promise<Book> {
+  async update(
+    id: string,
+    updateBookDto: UpdateBookDto,
+  ): Promise<BookDocument> {
     console.log(`Update One. Book ID: ${id}`);
 
     const book = await this.bookModel
@@ -53,7 +56,7 @@ export class BookService {
     return book;
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<BookDocument> {
     console.log(`Delete One. Book ID: ${id}`);
 
     const book = await this.bookModel.findByIdAndDelete(id);
@@ -63,5 +66,19 @@ export class BookService {
     }
 
     return book;
+  }
+
+  async loanedBooks(): Promise<BookDocument[]> {
+    console.log(`Find all loaned Books`);
+
+    const loanedBooks = await this.bookModel
+      .find({ loaned_to: { $ne: [] } })
+      .exec();
+
+    return loanedBooks;
+  }
+
+  async availableBooks(): Promise<BookDocument[]> {
+    return this.bookModel.find({ loaned_to: { $size: 0 } }).exec();
   }
 }

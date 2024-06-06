@@ -10,6 +10,7 @@ import {
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
+import { BookDocument } from './schemas/book.schema';
 
 @Controller('book')
 export class BookController {
@@ -21,22 +22,35 @@ export class BookController {
   }
 
   @Get()
-  async findAll() {
+  async findAll(): Promise<BookDocument[]> {
     return this.bookService.findAll();
   }
 
+  @Get('loaned')
+  getLoanedBooks(): Promise<BookDocument[]> {
+    return this.bookService.loanedBooks();
+  }
+
+  @Get('available')
+  async getAvailableBooks(): Promise<BookDocument[]> {
+    return this.bookService.availableBooks();
+  }
+
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string): Promise<BookDocument> {
     return this.bookService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBookDto: UpdateBookDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateBookDto: UpdateBookDto,
+  ): Promise<BookDocument> {
     return this.bookService.update(id, updateBookDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: string): Promise<BookDocument> {
     return this.bookService.remove(id);
   }
 }
