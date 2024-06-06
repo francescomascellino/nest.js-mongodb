@@ -34,6 +34,8 @@ export class BookService {
       throw new NotFoundException(`Book with ID ${id} not found`);
     }
 
+    console.log(`Found "${book.title}"`);
+
     return book;
   }
 
