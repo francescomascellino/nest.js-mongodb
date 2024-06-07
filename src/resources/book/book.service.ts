@@ -4,15 +4,15 @@ import { InjectModel } from '@nestjs/mongoose';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { Book, BookDocument } from './schemas/book.schema';
-import { User, UserDocument } from '../user/schemas/user.schema';
+// import { User, UserDocument } from '../user/schemas/user.schema';
 
 @Injectable()
 export class BookService {
   constructor(
     @InjectModel(Book.name) private bookModel: Model<BookDocument>,
 
-    // Inietta il modello user che abbiamo reso disponibile in UserModule e importato in BookModule
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    // Inietta il modello User che abbiamo reso disponibile in UserModule e importato in BookModule
+    // @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   async create(createBookDto: CreateBookDto) {
@@ -95,8 +95,7 @@ export class BookService {
       // Cerca i campo loaned_to not equal a [] (array vuoto)
       .find({ loaned_to: { $ne: [] } })
 
-      // Popola il campo loaned_to con il campo name trovato nel documento a cui fa riferimento l'id (loaned_to è un type: Types.ObjectId, ref: User.name).
-      // .populate('loaned_to', 'name')
+      // Popola il campo loaned_to con il campo name trovato nel documento a cui fa riferimento l'id (loaned_to è un type: Types.ObjectId, ref: 'User').
       .populate({
         path: 'loaned_to',
         select: 'name',

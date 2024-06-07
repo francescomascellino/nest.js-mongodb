@@ -9,7 +9,7 @@ import { BookModule } from '../book/book.module';
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     // Importa il modulo di user per averlo a disposizione
-    // BookModule,
+    // Usa forwardref per evitare dipendenze cicliche
     forwardRef(() => BookModule),
   ],
 

@@ -10,11 +10,12 @@ export class User {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   name: string;
 
-  // books_on_loan è un array di tipo Types.ObjectId di Books
-  // @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }], default: [] })
+  // @Prop({ type: [{ type: Types.ObjectId, ref: Book.name }], default: [] })
   // books_on_loan: Types.ObjectId[];
-  //@Prop({ type: [{ type: Types.ObjectId, ref: Book.name }], default: [] })
+
+  // Usiamo la stringa 'Book' per fare riferimento al modello
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }] })
+  // books_on_loan è un array di tipo Types.ObjectId di Books
   books_on_loan: Types.ObjectId[];
 }
 

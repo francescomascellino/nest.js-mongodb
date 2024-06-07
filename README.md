@@ -570,15 +570,23 @@ export class User {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   name: string;
 
-  // books_on_loan è un array di tipo Types.ObjectId di Books
+  
+  // Usiamo la stringa 'Book' per fare riferimento al modello
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }] })
+  // books_on_loan è un array di tipo Types.ObjectId di Books
   books_on_loan: Types.ObjectId[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 ```
 
-e importando il modulo usando forwardRef()
+e importando il modulo usando forwardRef().
+
+forwardRef() è una funzione fornita da NestJS che risolve il problema della dipendenza ciclica nei moduli.
+
+Quando due moduli dipendono l'uno dall'altro, ad esempio, se il BookModule dipende dal UserModule e viceversa, ci sarà un errore di dipendenza ciclica.
+
+Invece di importare direttamente il UserModule all'interno del BookModule, utilizzando forwardRef() importeremo UserModule in modo "ritardato", permettendo a NestJS di gestire correttamente le dipendenze cicliche.
 
 ***src//resources/user/user.module***
 ```ts
@@ -599,7 +607,6 @@ import { BookModule } from '../book/book.module';
   controllers: [UserController],
   providers: [UserService],
   exports: [
-    // Esporta il MoongoseModule di User per renderlo disponibile
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
   ],
 })
@@ -631,6 +638,17 @@ async findAll(): Promise<UserDocument[]> {
   }
 ```
 
+PS: non abbiamo bisogno di iniettare il modello importato se non usato:
+
+***src/resources/user/user.service.ts***
+```ts
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+
+    // Inietta il modello Book che abbiamo reso disponibile in UserModule e importato in BookModule
+    // @InjectModel(Book.name) private bookModel: Model<BookDocument>,
+  ) {}
+```
 la nostra response dovrebbe esere:
 ```json
 [
