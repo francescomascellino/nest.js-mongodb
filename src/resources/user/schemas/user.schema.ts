@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+// import { BookDocument } from 'src/resources/book/schemas/book.schema';
+// import { Book } from 'src/resources/book/schemas/book.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -9,7 +11,10 @@ export class User {
   name: string;
 
   // books_on_loan è un array di tipo Types.ObjectId di Books
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }], default: [] })
+  // @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }], default: [] })
+  // books_on_loan: Types.ObjectId[];
+  //@Prop({ type: [{ type: Types.ObjectId, ref: Book.name }], default: [] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }] })
   books_on_loan: Types.ObjectId[];
 }
 

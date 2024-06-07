@@ -2,7 +2,7 @@
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { User } from 'src/resources/user/schemas/user.schema';
+// import { User } from 'src/resources/user/schemas/user.schema';
 
 export type BookDocument = HydratedDocument<Book>;
 
@@ -19,7 +19,8 @@ export class Book {
 
   // User.name è una proprietà del modello User che contiene il nome del modello.
   // ref: User.name dice a Mongoose che il campo a cui è applicato fa riferimento al modello User
-  @Prop({ type: Types.ObjectId, ref: User.name })
+  // @Prop({ type: Types.ObjectId, ref: User.name })
+  @Prop({ type: Types.ObjectId, ref: 'User' })
   loaned_to: Types.ObjectId;
 }
 

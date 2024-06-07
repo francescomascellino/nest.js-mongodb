@@ -192,6 +192,7 @@ Questo significa che il nuovo tipo conterrà tutti i campi del DTO originale, ma
 https://github.com/francescomascellino/nest-basics?tab=readme-ov-file#dto
 
 ## Definire i metodi del servizio:
+
 ***src/resources/book/book.service.ts***
 ```ts
 import { Model } from 'mongoose';
@@ -282,6 +283,7 @@ export class BookService {
 ```
 
 ## Definire le rotte nel controller
+
 ***src/resources/book/book.controller.ts***
 ```ts
 import {
@@ -547,6 +549,101 @@ dovrebbe essere:
             "_id": "66605031a9a8d2847d5b85d5",
             "name": "Mario Rossi"
         }
+    }
+]
+```
+
+## Evitare le dipendenze circolari
+
+Quando due modelli si richiamano a vicenda si possono incontrare problemi di dipendenza circolare.
+E' possibile evitarli riferendosi al modello usando una stringa nello schema:
+
+***src/resources/book/schemas/user.schema.ts***
+```ts
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+export type UserDocument = HydratedDocument<User>;
+
+@Schema()
+export class User {
+  @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
+  name: string;
+
+  // books_on_loan è un array di tipo Types.ObjectId di Books
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }] })
+  books_on_loan: Types.ObjectId[];
+}
+
+export const UserSchema = SchemaFactory.createForClass(User);
+```
+
+e importando il modulo usando forwardRef()
+
+***src//resources/user/user.module***
+```ts
+import { Module, forwardRef } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserService } from './user.service';
+import { UserController } from './user.controller';
+import { User, UserSchema } from './schemas/user.schema';
+import { BookModule } from '../book/book.module';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    // Importa il modulo di user per averlo a disposizione
+    forwardRef(() => BookModule), // Usa forwardref
+  ],
+
+  controllers: [UserController],
+  providers: [UserService],
+  exports: [
+    // Esporta il MoongoseModule di User per renderlo disponibile
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+  ],
+})
+export class UserModule {}
+```
+
+Sucessivamente possiamo definire nel servizio il metodo, specificando i dettagli da popolare usando il modello importato:
+
+***src/resources/user/user.service.ts***
+```ts
+async findAll(): Promise<UserDocument[]> {
+    console.log('Find all Users');
+
+    const books = await this.bookModel.find().exec();
+
+    console.log(books);
+
+    const users = await this.userModel
+      .find()
+      // Definiamo o dettagli da usare per popolare il campo
+      .populate({
+        path: 'books_on_loan',
+        select: ['title', 'ISBN'],
+        model: 'Book',
+      })
+      .exec();
+
+    return users;
+  }
+```
+
+la nostra response dovrebbe esere:
+```json
+[
+    {
+        "_id": "66605031a9a8d2847d5b85d5",
+        "name": "Mario Rossi",
+        "books_on_loan": [
+            {
+                "_id": "66605047a9a8d2847d5b85d6",
+                "ISBN": "9781234567890",
+                "title": "Il Signore degli Anelli"
+            }
+        ]
     }
 ]
 ```

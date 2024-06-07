@@ -4,10 +4,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 // import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
+import { Book, BookDocument } from '../book/schemas/book.schema';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Book.name) private bookModel: Model<BookDocument>,
+  ) {}
 
   /*   create(createUserDto: CreateUserDto) {
     return 'This action adds a new user';
@@ -16,7 +20,18 @@ export class UserService {
   async findAll(): Promise<UserDocument[]> {
     console.log('Find all Users');
 
-    const users = await this.userModel.find().exec();
+    const books = await this.bookModel.find().exec();
+
+    console.log(books);
+
+    const users = await this.userModel
+      .find()
+      .populate({
+        path: 'books_on_loan',
+        select: ['title', 'ISBN'],
+        model: 'Book',
+      })
+      .exec();
 
     return users;
   }
