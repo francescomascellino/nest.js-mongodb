@@ -413,3 +413,140 @@ import { UserModule } from './resources/user/user.module';
 })
 export class AppModule {}
 ```
+
+## Query con riferimento a campi popolati usando altri modelli
+
+In questo caso vogliamo che quando effettuiamo la query per ottenere i libri in affitto, riceviamo nella response anche il nome dell'utente oltre al suo ID.
+
+Come primo passaggio dobbiamo esportare il MongooseModule di User per renderlo disponibile
+
+***src//resources/user/user.module***
+```ts
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserService } from './user.service';
+import { UserController } from './user.controller';
+import { User, UserSchema } from './schemas/user.schema';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+  ],
+
+  controllers: [UserController],
+  providers: [UserService],
+  exports: [
+
+    // Esporta il MoongoseModule di User per renderlo disponibile
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+  ],
+})
+export class UserModule {}
+```
+Importiamo in BookModule il nostro UserModule (che ora esporta il Modello e lo Schema di User)
+
+***src/resources/book/book.module.ts***
+```ts
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { BookService } from './book.service';
+import { BookController } from './book.controller';
+import { Book, BookSchema } from './schemas/book.schema';
+
+// Importiamo UserModule
+import { UserModule } from '../user/user.module';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([{ name: Book.name, schema: BookSchema }]),
+
+    // Importa il modulo di user per averlo a disposizione
+    UserModule,
+  ],
+
+  controllers: [BookController],
+  providers: [BookService],
+})
+export class BookModule {}
+```
+Successivamente aggiungiamo i dovuti riferimenti nello schema di Book.
+
+***src/resources/book/schemas/book.schema.ts***
+```ts
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+// Importiamo il nostro modello
+import { User } from 'src/resources/user/schemas/user.schema';
+
+export type BookDocument = HydratedDocument<Book>;
+
+@Schema()
+export class Book {
+
+  // Altre Prop
+
+  // User.name è una proprietà del modello User che contiene il nome del modello.
+  // ref: User.name dice a Mongoose che il campo a cui è applicato fa riferimento al modello User
+  @Prop({ type: Types.ObjectId, ref: User.name })
+  loaned_to: Types.ObjectId;
+}
+
+export const BookSchema = SchemaFactory.createForClass(Book);
+```
+
+Dopodichè nel BookService importiamo il modello di User che abbiamo a disposizione poiché è stato importato nel nostro BookModule e definiamo il metodo
+```ts
+import { Model } from 'mongoose';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { Book, BookDocument } from './schemas/book.schema';
+
+// Importiamo il modello di User e il suo Schema
+import { User, UserDocument } from '../user/schemas/user.schema';
+
+@Injectable()
+export class BookService {
+  constructor(
+    @InjectModel(Book.name) private bookModel: Model<Book>,
+
+    // Iniettiamo il modello user che abbiamo reso disponibile in UserModule e importato in BookModule
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+  ) {}
+
+  // Altre CRUD e Query
+
+  async loanedBooks(): Promise<BookDocument[]> {
+    console.log(`Find all loaned Books`);
+
+    const loanedBooks = await this.bookModel
+      // Cerca i campo loaned_to not equal a [] (array vuoto)
+      .find({ loaned_to: { $ne: [] } })
+
+      // Popola il campo loaned_to con il campo name trovato nel documento a cui fa riferimento l'id (loaned_to è un type: Types.ObjectId, ref: User.name).
+      .populate('loaned_to', 'name')
+      .exec();
+
+    return loanedBooks;
+  }
+}
+```
+
+In questo modo la response all'endpoint ***http://localhost:[port]/book/loaned***
+dovrebbe essere:
+```json
+[
+    {
+        "_id": "66605047a9a8d2847d5b85d6",
+        "ISBN": "9781234567890",
+        "title": "Il Signore degli Anelli",
+        "author": "J.R.R. Tolkien",
+        "loaned_to": {
+            "_id": "66605031a9a8d2847d5b85d5",
+            "name": "Mario Rossi"
+        }
+    }
+]
+```
