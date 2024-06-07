@@ -1,7 +1,8 @@
 // With Mongoose, everything is derived from a Schema. Each schema maps to a MongoDB collection and defines the shape of the documents within that collection. Schemas are used to define Models. Models are responsible for creating and reading documents from the underlying MongoDB database.
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+import { User } from 'src/resources/user/schemas/user.schema';
 
 export type BookDocument = HydratedDocument<Book>;
 
@@ -16,8 +17,10 @@ export class Book {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   public ISBN!: string;
 
-  @Prop({ type: [String], maxlength: 50, minlength: 3 })
-  public loaned_to!: string;
+  // User.name è una proprietà del modello User che contiene il nome del modello.
+  // ref: User.name dice a Mongoose che il campo a cui è applicato fa riferimento al modello User
+  @Prop({ type: Types.ObjectId, ref: User.name })
+  loaned_to: Types.ObjectId;
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);
