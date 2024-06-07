@@ -39,7 +39,14 @@ export class UserService {
   async findOne(id: string): Promise<UserDocument> {
     console.log(`Find One. User ID: ${id}`);
 
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel
+      .findById(id)
+      .populate({
+        path: 'books_on_loan',
+        select: ['title', 'ISBN'],
+        model: 'Book',
+      })
+      .exec();
 
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

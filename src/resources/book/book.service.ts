@@ -26,7 +26,14 @@ export class BookService {
   async findAll(): Promise<BookDocument[]> {
     console.log('Find all Books');
 
-    const books = await this.bookModel.find().exec();
+    const books = await this.bookModel
+      .find()
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
 
     return books;
   }
@@ -34,7 +41,14 @@ export class BookService {
   async findOne(id: string): Promise<BookDocument> {
     console.log(`Find One. Book ID: ${id}`);
 
-    const book = await this.bookModel.findById(id).exec();
+    const book = await this.bookModel
+      .findById(id)
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
 
     if (!book) {
       throw new NotFoundException(`Book with ID ${id} not found`);
