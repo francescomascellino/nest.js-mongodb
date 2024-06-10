@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { RoleEnum } from 'src/resources/enum/role.enum';
 // import { BookDocument } from 'src/resources/book/schemas/book.schema';
 // import { Book } from 'src/resources/book/schemas/book.schema';
 
@@ -26,6 +27,9 @@ export class User {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Book' }] })
   // books_on_loan è un array di tipo Types.ObjectId di Books
   books_on_loan: Types.ObjectId[];
+
+  @Prop({ enum: Object.values(RoleEnum), default: RoleEnum.USER })
+  role: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

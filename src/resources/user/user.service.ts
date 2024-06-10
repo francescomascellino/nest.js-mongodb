@@ -117,6 +117,9 @@ export class UserService {
     const users = await this.userModel
       .find()
 
+      // Esclude il capo password
+      .select('-password')
+
       // Popola il campo books_on_loan con il campo name trovato nel documento a cui fa riferimento l'id (books_on_loan è un type: Types.ObjectId, ref: 'Book').
       .populate({
         path: 'books_on_loan',
@@ -133,6 +136,10 @@ export class UserService {
 
     const user = await this.userModel
       .findById(id)
+
+      // Esclude il capo password
+      .select('-password')
+
       .populate({
         path: 'books_on_loan',
         select: ['title', 'ISBN'],
