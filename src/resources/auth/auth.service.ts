@@ -30,7 +30,7 @@ export class AuthService {
     };
   }
 
-  // La creazione dell'utente eè delegata al controller User. il metodo resta qui per referenza
+  // La creazione dell'utente è delegata al controller User. il metodo resta qui per referenza
   /* 
   async register(user: any) {
     const hashedPassword = bcrypt.hashSync(user.password, 10);
