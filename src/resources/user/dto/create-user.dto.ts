@@ -1,3 +1,4 @@
+import { Prop } from '@nestjs/mongoose';
 import {
   IsNotEmpty,
   IsString,
@@ -5,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { RoleEnum } from 'src/resources/enum/role.enum';
 
 export class CreateUserDto {
   @IsString()
@@ -31,6 +33,9 @@ export class CreateUserDto {
   password!: string;
 
   books_on_loan?: string[];
+
+  @Prop({ enum: Object.values(RoleEnum), default: RoleEnum.USER })
+  role: string;
 
   public constructor(opts?: Partial<CreateUserDto>) {
     Object.assign(this, opts);

@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -14,6 +15,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDocument } from './schemas/user.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+export interface ExtendedRequest extends Request {
+  user: UserDocument;
+}
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -25,8 +29,9 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll(): Promise<UserDocument[]> {
-    return this.userService.findAll();
+  findAll(@Req() req: ExtendedRequest): Promise<UserDocument[]> {
+    const requestingUser = req.user;
+    return this.userService.findAll(requestingUser);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -37,8 +42,14 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(id, updateUserDto);
+  update(
+    @Req() req: ExtendedRequest,
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    // Recuperiamo l'utente che sta facendo la richiesta e lo inviamo al servizio
+    const requestingUser = req.user;
+    return this.userService.update(requestingUser, id, updateUserDto);
   }
 
   @UseGuards(JwtAuthGuard)

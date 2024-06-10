@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -111,8 +112,10 @@ export class UserService {
     return createdUser.save();
   }
 
-  async findAll(): Promise<UserDocument[]> {
+  async findAll(requestingUser: UserDocument): Promise<UserDocument[]> {
     console.log('Find all Users');
+
+    console.log('Requesting User:', JSON.stringify(requestingUser));
 
     const users = await this.userModel
       .find()
@@ -162,10 +165,33 @@ export class UserService {
   }
 
   async update(
+    requestingUser,
     id: string,
     updateUserDto: UpdateUserDto,
   ): Promise<UserDocument> {
     console.log(`Update One. User ID:${id}`);
+
+    console.log('Requesting User ID:', requestingUser.userId);
+
+    const requester = await this.userModel
+      .findById(requestingUser.userId)
+      .exec();
+
+    console.log('Requester:', requester);
+
+    const userRole = requester.role;
+
+    console.log('requester:', userRole);
+
+    if (
+      userRole !== 'admin' &&
+      updateUserDto.role &&
+      updateUserDto.role !== requester.role
+    ) {
+      throw new UnauthorizedException(
+        'Unauthorized: Only admins can change user roles',
+      );
+    }
 
     if (updateUserDto.password) {
       const salt = await bcrypt.genSalt();
