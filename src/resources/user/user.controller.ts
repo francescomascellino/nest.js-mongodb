@@ -52,4 +52,20 @@ export class UserController {
   findByUsername(@Param('username') id: string): Promise<UserDocument> {
     return this.userService.findByUsername(id);
   }
+
+  @Post(':userId/borrow/:bookId')
+  async borrowBook(
+    @Param('userId') userId: string,
+    @Param('bookId') bookId: string,
+  ): Promise<UserDocument> {
+    return this.userService.borrowBook(userId, bookId);
+  }
+
+  @Post(':userId/return/:bookId')
+  async returnBook(
+    @Param('userId') userId: string,
+    @Param('bookId') bookId: string,
+  ): Promise<UserDocument> {
+    return this.userService.returnBook(userId, bookId);
+  }
 }

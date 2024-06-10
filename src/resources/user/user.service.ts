@@ -1,42 +1,103 @@
 import { Model } from 'mongoose';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
+import { Book, BookDocument } from '../book/schemas/book.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcryptjs';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Book.name) private bookModel: Model<BookDocument>,
 
     // Inietta il modello Book che abbiamo reso disponibile in UserModule e importato in BookModule
     // @InjectModel(Book.name) private bookModel: Model<BookDocument>,
   ) {}
 
-  /*
   async borrowBook(userId: string, bookId: string): Promise<UserDocument> {
-    // Trova l'utente
-    const user = await this.userModel.findById(userId).exec();
+    const userObjectId = new Types.ObjectId(userId);
+    const bookObjectId = new Types.ObjectId(bookId);
+
+    const user = await this.userModel.findById(userObjectId).exec();
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    // Controlla che il libro non sia già stato preso in prestito dall'utente
-    if (user.books_on_loan.includes(bookId)) {
+    const book = await this.bookModel.findById(bookObjectId).exec();
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${bookId} not found`);
+    }
+
+    if (book.loaned_to) {
+      throw new ConflictException(`Book with ID ${bookId} is already on loan`);
+    }
+
+    if (
+      user.books_on_loan.some((id) =>
+        new Types.ObjectId(id).equals(bookObjectId),
+      )
+    ) {
       throw new ConflictException(
         `User already borrowed the book with ID ${bookId}`,
       );
     }
 
-    // Controllare che il libro non sia già stato prestato
+    book.loaned_to = user._id;
+    user.books_on_loan.push(bookObjectId);
 
-    user.books_on_loan.push(bookId);
-
+    await book.save();
     return await user.save();
-  } 
-  */
+  }
+
+  async returnBook(userId: string, bookId: string): Promise<UserDocument> {
+    const userObjectId = new Types.ObjectId(userId);
+    const bookObjectId = new Types.ObjectId(bookId);
+
+    const user = await this.userModel.findById(userObjectId).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    const book = await this.bookModel.findById(bookObjectId).exec();
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${bookId} not found`);
+    }
+
+    if (
+      !user.books_on_loan.some((id) =>
+        new Types.ObjectId(id).equals(bookObjectId),
+      )
+    ) {
+      throw new ConflictException(
+        `User did not borrow the book with ID ${bookId}`,
+      );
+    }
+
+    if (
+      !book.loaned_to ||
+      !new Types.ObjectId(book.loaned_to).equals(userObjectId)
+    ) {
+      throw new ConflictException(
+        `Book with ID ${bookId} is not loaned to user with ID ${userId}`,
+      );
+    }
+
+    user.books_on_loan = user.books_on_loan.filter(
+      (id) => !new Types.ObjectId(id).equals(bookObjectId),
+    );
+    book.loaned_to = null;
+
+    await book.save();
+    return await user.save();
+  }
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const salt = await bcrypt.genSalt();

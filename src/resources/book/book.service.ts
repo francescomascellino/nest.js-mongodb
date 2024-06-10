@@ -93,7 +93,7 @@ export class BookService {
 
     const loanedBooks = await this.bookModel
       // Cerca i campo loaned_to not equal a [] (array vuoto)
-      .find({ loaned_to: { $ne: [] } })
+      .find({ loaned_to: { $ne: null } })
 
       // Popola il campo loaned_to con il campo name trovato nel documento a cui fa riferimento l'id (loaned_to è un type: Types.ObjectId, ref: 'User').
       .populate({
@@ -107,6 +107,10 @@ export class BookService {
   }
 
   async availableBooks(): Promise<BookDocument[]> {
-    return this.bookModel.find({ loaned_to: { $size: 0 } }).exec();
+    return this.bookModel
+      .find({
+        $or: [{ loaned_to: null }, { loaned_to: { $size: 0 } }],
+      })
+      .exec();
   }
 }

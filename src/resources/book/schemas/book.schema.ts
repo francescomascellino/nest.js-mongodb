@@ -23,7 +23,7 @@ export class Book {
 
   // Usiamo la stringa 'User' per fare riferimento al modello
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  loaned_to: Types.ObjectId;
+  loaned_to: Types.ObjectId | null;
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);
