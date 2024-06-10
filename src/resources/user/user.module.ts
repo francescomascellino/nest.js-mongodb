@@ -18,6 +18,7 @@ import { BookModule } from '../book/book.module';
   exports: [
     // Esporta il MoongoseModule di User per renderlo disponibile
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    UserService,
   ],
 })
 export class UserModule {}

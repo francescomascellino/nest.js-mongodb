@@ -1,10 +1,10 @@
 import { Model } from 'mongoose';
 import { Injectable, NotFoundException } from '@nestjs/common';
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
-// import { Book, BookDocument } from '../book/schemas/book.schema';
+import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
@@ -15,9 +15,40 @@ export class UserService {
     // @InjectModel(Book.name) private bookModel: Model<BookDocument>,
   ) {}
 
-  /*   create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
-  } */
+  /*
+  async borrowBook(userId: string, bookId: string): Promise<UserDocument> {
+    // Trova l'utente
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    // Controlla che il libro non sia già stato preso in prestito dall'utente
+    if (user.books_on_loan.includes(bookId)) {
+      throw new ConflictException(
+        `User already borrowed the book with ID ${bookId}`,
+      );
+    }
+
+    // Controllare che il libro non sia già stato prestato
+
+    user.books_on_loan.push(bookId);
+
+    return await user.save();
+  } 
+  */
+
+  async create(createUserDto: CreateUserDto): Promise<UserDocument> {
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+
+    const createdUser = new this.userModel({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+
+    return createdUser.save();
+  }
 
   async findAll(): Promise<UserDocument[]> {
     console.log('Find all Users');
@@ -57,11 +88,35 @@ export class UserService {
     return user;
   }
 
-  /*   update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
-  } */
+  async findByUsername(username: string): Promise<UserDocument | null> {
+    console.log(`Find by Username. Username: ${username}`);
+    return this.userModel.findOne({ username }).exec();
+  }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserDocument> {
+    console.log(`Update One. User ID:${id}`);
+
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(updateUserDto.password, salt);
+      updateUserDto.password = hashedPassword;
+    }
+
+    const user = await this.userModel
+      .findByIdAndUpdate(id, updateUserDto, { new: true })
+      .exec();
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return user;
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.userModel.findByIdAndDelete(id).exec();
   }
 }

@@ -1,43 +1,55 @@
 import {
   Controller,
   Get,
-  // Post,
-  // Body,
-  // Patch,
+  Post,
+  Body,
+  Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDocument } from './schemas/user.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  /* @Post()
+  @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
-  } */
+  }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll(): Promise<UserDocument[]> {
     return this.userService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string): Promise<UserDocument> {
     return this.userService.findOne(id);
   }
 
-  /* @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
-  } */
+    return this.userService.update(id, updateUserDto);
+  }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+    return this.userService.remove(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':username')
+  findByUsername(@Param('username') id: string): Promise<UserDocument> {
+    return this.userService.findByUsername(id);
   }
 }

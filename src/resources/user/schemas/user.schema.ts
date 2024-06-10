@@ -10,6 +10,15 @@ export class User {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   name: string;
 
+  @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
+  surname: string;
+
+  @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
+  username: string;
+
+  @Prop({ required: true, maxlength: 100, minlength: 8, type: String })
+  password: string;
+
   // @Prop({ type: [{ type: Types.ObjectId, ref: Book.name }], default: [] })
   // books_on_loan: Types.ObjectId[];
 
