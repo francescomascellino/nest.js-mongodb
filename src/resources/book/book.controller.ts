@@ -10,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
+import { CreateMultipleBooksDto } from './dto/create-multiple-books.dto';
+// import { DeleteMultipleBooksDto } from './dto/delete-multiple-books.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
+// import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
 import { BookDocument } from './schemas/book.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -22,6 +25,12 @@ export class BookController {
   @Post()
   create(@Body() createBookDto: CreateBookDto) {
     return this.bookService.create(createBookDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('bulk')
+  createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+    return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
   }
 
   @UseGuards(JwtAuthGuard)

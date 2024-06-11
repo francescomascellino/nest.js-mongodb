@@ -15,12 +15,59 @@ export class BookService {
     // @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
+  async checkISBN() {
+    // TO DO: implementare la funzione per verificare se un libro con lo stesso ISBN esiste nel DB
+  }
+
   async create(createBookDto: CreateBookDto) {
     console.log(`Create new Book`);
 
     const newBook = new this.bookModel(createBookDto);
 
     return await newBook.save();
+  }
+
+  async createMultipleBooks(
+    createBookDtos: CreateBookDto[],
+  ): Promise<BookDocument[]> {
+    console.log('Create multiple Books');
+
+    const createdBooks = [];
+    const existingISBNs = new Set<string>();
+    const messages = [];
+
+    try {
+      // Cerca tutti i libri ma richiede solo il campo ISBN
+      const existingBooks = await this.bookModel.find({}, 'ISBN').exec();
+      // Aggiunge al set tutti gli ISBN dei libri registrati.
+      existingBooks.forEach((book) => existingISBNs.add(book.ISBN));
+
+      for (const bookDto of createBookDtos) {
+        // Se un ISBN presente nel DTO è incluso nel set existingISBNs
+        if (existingISBNs.has(bookDto.ISBN)) {
+          // Passa al prossimo libro
+          console.log(
+            `Book with ISBN ${bookDto.ISBN} already exists. Skipping...`,
+          );
+          messages.push({
+            ISBN: `${bookDto.ISBN}`,
+            message: `Book with ISBN ${bookDto.ISBN} already exists.`,
+          });
+          continue;
+        }
+
+        const newBook = new this.bookModel(bookDto);
+        const createdBook = await newBook.save();
+        createdBooks.push(createdBook);
+      }
+    } catch (error) {
+      console.error('Error creating books:', error);
+      throw error;
+    }
+
+    createdBooks.push({ messages });
+
+    return createdBooks;
   }
 
   async findAll(): Promise<BookDocument[]> {
