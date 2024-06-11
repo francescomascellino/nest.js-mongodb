@@ -26,6 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // l metodo validate(payload: any) viene chiamato per convalidare il payload del token JWT.
     // Questo metodo riceve il payload del token come argomento e restituisce un oggetto che rappresenta l'utente autenticato.
     // Nel caso di questo esempio, restituisce un oggetto contenente l'ID dell'utente (userId) (payload.sub = payload.subject) e il nome utente (username) estratti dal payload del token.
+    // Il payload viene definito in sers/resources/auth/auth.service.ts - login()
     return { userId: payload.sub, username: payload.username };
   }
 }

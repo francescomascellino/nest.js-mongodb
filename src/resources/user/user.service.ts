@@ -18,9 +18,6 @@ export class UserService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Book.name) private bookModel: Model<BookDocument>,
-
-    // Inietta il modello Book che abbiamo reso disponibile in UserModule e importato in BookModule
-    // @InjectModel(Book.name) private bookModel: Model<BookDocument>,
   ) {}
 
   /**
@@ -195,10 +192,38 @@ export class UserService {
     return user;
   }
 
+  async adminFiindByUsername(
+    requestingUser,
+    username: string,
+  ): Promise<UserDocument | null> {
+    console.log(`Find by Username for Admin. Username: ${username}`);
+
+    // Usa l'usser ID del requesting user per cercare l'utente nel DB
+    const requester = await this.userModel
+      .findById(requestingUser.userId)
+      .exec();
+
+    // Ricava il ruolo dell'utente che sta effettuando la richiesta
+    const userRole = requester.role;
+
+    console.log('requester role:', userRole);
+
+    // Se l'utente non è un amministratore, genera un'eccezione di autorizzazione
+    if (userRole !== 'admin') {
+      throw new UnauthorizedException(
+        'Unauthorized: Only admins perform this operation',
+      );
+    }
+
+    // Altrimenti, cerca e restituisce l'utente richiesto
+    return this.userModel.findOne({ username }).exec();
+  }
+
   async findByUsername(username: string): Promise<UserDocument | null> {
     console.log(`Find by Username. Username: ${username}`);
     return this.userModel.findOne({ username }).exec();
   }
+
   /**
    * Aggiorna un utente con i dati forniti nel DTO di aggiornamento.
    *

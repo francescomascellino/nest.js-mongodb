@@ -75,9 +75,15 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':username')
-  findByUsername(@Param('username') id: string): Promise<UserDocument> {
-    return this.userService.findByUsername(id);
+  @Get('/admin/search/:username')
+  findByUsername(
+    @Req() req: ExtendedRequest,
+    @Param('username') username: string,
+  ): Promise<UserDocument | null> {
+    const requestingUser = req.user;
+    console.log(requestingUser);
+
+    return this.userService.adminFiindByUsername(requestingUser, username);
   }
 
   /**
