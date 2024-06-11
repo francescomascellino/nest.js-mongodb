@@ -36,6 +36,7 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  // La creazione dell'utente è delegata al controller User. il metodo resta qui per referenza
   /* 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
