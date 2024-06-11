@@ -21,18 +21,51 @@ export class UserService {
   ) {}
 
   /**
+   * Trova un utente per ID.
+   * @param userId L'ID dell'utente da trovare.
+   * @returns Il documento dell'utente.
+   * @throws NotFoundException Se l'utente non viene trovato.
+   */
+  private async findUserById(userId: string): Promise<UserDocument> {
+    // Converte userId in ObjectId
+    const userObjectId = new Types.ObjectId(userId);
+    // Trova l'utente nel database tramite il suo ObjectId
+    const user = await this.userModel.findById(userObjectId).exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return user;
+  }
+
+  /**
    * Trova un libro per ID.
    * @param bookId L'ID del libro da trovare.
    * @returns Il documento del libro.
    * @throws NotFoundException Se il libro non viene trovato.
    */
   private async findBookById(bookId: string): Promise<BookDocument> {
+    // Converte bookId in ObjectId
     const bookObjectId = new Types.ObjectId(bookId);
+    // Trova il libro nel database tramite il suo ObjectId
     const book = await this.bookModel.findById(bookObjectId).exec();
     if (!book) {
       throw new NotFoundException(`Book with ID ${bookId} not found`);
     }
     return book;
+  }
+
+  /**
+   * Controlla se un utente ha preso in prestito un determinato libro.
+   * @param user L'utente da controllare.
+   * @param bookId L'ID del libro.
+   * @returns true se l'utente ha preso in prestito il libro, altrimenti false.
+   */
+  private userHasBorrowedBook(user: UserDocument, bookId: string): boolean {
+    const bookObjectId = new Types.ObjectId(bookId);
+    // Controlla se l'array books_on_loan contiene l'ObjectId del libro
+    return user.books_on_loan.some((id) =>
+      new Types.ObjectId(id).equals(bookObjectId),
+    );
   }
 
   /**
@@ -47,41 +80,26 @@ export class UserService {
    * @throws ConflictException Se il libro è già in prestito o se l'utente ha già preso in prestito lo stesso libro
    */
   async borrowBook(userId: string, bookId: string): Promise<UserDocument> {
-    // Converte gli ID da stringhe a ObjectId
-    const userObjectId = new Types.ObjectId(userId);
-    const bookObjectId = new Types.ObjectId(bookId);
+    // Trova l'utente e il libro nel database tramite i loro ObjectId
+    const user = await this.findUserById(userId);
+    const book = await this.findBookById(bookId);
 
-    // Trova l'utente nel database tramite il suo ObjectId
-    const user = await this.userModel.findById(userObjectId).exec();
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    // Trova il libro nel database tramite il suo ObjectId
-    const book = await this.bookModel.findById(bookObjectId).exec();
-    if (!book) {
-      throw new NotFoundException(`Book with ID ${bookId} not found`);
-    }
-
-    // Verifica se il libro è già in prestito
-    if (book.loaned_to) {
-      throw new ConflictException(`Book with ID ${bookId} is already on loan`);
-    }
-
-    // Verifica se l'utente ha già preso in prestito lo stesso libro
-    if (
-      user.books_on_loan.some((id) =>
-        new Types.ObjectId(id).equals(bookObjectId),
-      )
-    ) {
+    // Controlla se il libro è già in prestito dall'utente
+    if (this.userHasBorrowedBook(user, bookId)) {
       throw new ConflictException(
         `User already borrowed the book with ID ${bookId}`,
       );
     }
 
-    // Assegna il libro all'utente
+    // Controlla se il libro è già stato preso in prestito da un altro utente
+    if (book.loaned_to) {
+      throw new ConflictException(`Book with ID ${bookId} is already on loan`);
+    }
+
+    // Assegna l'utente al libro
     book.loaned_to = user._id;
-    user.books_on_loan.push(bookObjectId);
+    // Assegna il libro all'utente
+    user.books_on_loan.push(book._id);
 
     // Salva le modifiche al database
     await book.save();
@@ -100,46 +118,21 @@ export class UserService {
    * @throws ConflictException Se l'utente non ha preso in prestito il libro o se il libro non è attualmente preso in prestito dall'utente
    */
   async returnBook(userId: string, bookId: string): Promise<UserDocument> {
-    // Converte gli ID da stringhe a ObjectId
-    const userObjectId = new Types.ObjectId(userId);
-    const bookObjectId = new Types.ObjectId(bookId);
-
-    // Trova l'utente nel database tramite il suo ObjectId
-    const user = await this.userModel.findById(userObjectId).exec();
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    // Trova il libro nel database tramite il suo ObjectId
-    const book = await this.bookModel.findById(bookObjectId).exec();
-    if (!book) {
-      throw new NotFoundException(`Book with ID ${bookId} not found`);
-    }
+    // Trova l'utente e il libro nel database tramite i loro ObjectId
+    const user = await this.findUserById(userId);
+    const book = await this.findBookById(bookId);
 
     // Verifica se l'utente ha preso in prestito il libro
-    if (
-      !user.books_on_loan.some((id) =>
-        new Types.ObjectId(id).equals(bookObjectId),
-      )
-    ) {
+    if (!this.userHasBorrowedBook(user, bookId)) {
+      // Lancia un'eccezione se l'utente non ha preso in prestito il libro
       throw new ConflictException(
         `User did not borrow the book with ID ${bookId}`,
       );
     }
 
-    // Verifica se il libro è attualmente preso in prestito dall'utente
-    if (
-      !book.loaned_to ||
-      !new Types.ObjectId(book.loaned_to).equals(userObjectId)
-    ) {
-      throw new ConflictException(
-        `Book with ID ${bookId} is not loaned to user with ID ${userId}`,
-      );
-    }
-
     // Rimuove il libro dalla lista dei libri presi in prestito dall'utente
     user.books_on_loan = user.books_on_loan.filter(
-      (id) => !new Types.ObjectId(id).equals(bookObjectId),
+      (id) => !new Types.ObjectId(id).equals(book._id),
     );
     book.loaned_to = null;
 

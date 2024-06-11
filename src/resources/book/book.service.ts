@@ -24,7 +24,7 @@ export class BookService {
    * @param ISBN - Il codice ISBN del libro da verificare.
    * @returns Una promessa che restituisce true se il libro esiste, altrimenti false.
    */
-  async checkISBN(ISBN: string): Promise<boolean> {
+  private async checkISBN(ISBN: string): Promise<boolean> {
     const existingBook = await this.bookModel.findOne({ ISBN }).exec();
     // Restituisce true se esiste un libro con lo stesso ISBN, altrimenti false
     return !!existingBook;
