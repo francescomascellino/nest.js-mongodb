@@ -21,6 +21,21 @@ export class UserService {
   ) {}
 
   /**
+   * Trova un libro per ID.
+   * @param bookId L'ID del libro da trovare.
+   * @returns Il documento del libro.
+   * @throws NotFoundException Se il libro non viene trovato.
+   */
+  private async findBookById(bookId: string): Promise<BookDocument> {
+    const bookObjectId = new Types.ObjectId(bookId);
+    const book = await this.bookModel.findById(bookObjectId).exec();
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${bookId} not found`);
+    }
+    return book;
+  }
+
+  /**
    * Permette a un utente di prendere in prestito un libro.
    * Controlla se l'utente e il libro esistono, se il libro è già in prestito
    * e se l'utente ha già preso in prestito lo stesso libro.

@@ -1,5 +1,9 @@
 import { Model } from 'mongoose';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -15,37 +19,57 @@ export class BookService {
     // @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
-  async checkISBN() {
-    // TO DO: implementare la funzione per verificare se un libro con lo stesso ISBN esiste nel DB
+  /**
+   * Verifica se un libro con un dato ISBN esiste nel database.
+   * @param ISBN - Il codice ISBN del libro da verificare.
+   * @returns Una promessa che restituisce true se il libro esiste, altrimenti false.
+   */
+  async checkISBN(ISBN: string): Promise<boolean> {
+    const existingBook = await this.bookModel.findOne({ ISBN }).exec();
+    // Restituisce true se esiste un libro con lo stesso ISBN, altrimenti false
+    return !!existingBook;
   }
 
+  /**
+   * Crea un nuovo libro nel database.
+   * @param createBookDto - I dati del libro da creare.
+   * @returns Una promessa che restituisce il documento del libro creato.
+   * @throws ConflictException se un libro con lo stesso ISBN esiste già.
+   */
   async create(createBookDto: CreateBookDto) {
     console.log(`Create new Book`);
+
+    // Se checkISBN rileva che il libro esiste, genera un'eccezione
+    if (await this.checkISBN(createBookDto.ISBN)) {
+      console.log(`Book with ISBN ${createBookDto.ISBN} already exists.`);
+      throw new ConflictException(
+        `Book with ISBN ${createBookDto.ISBN} already exists.`,
+      );
+    }
 
     const newBook = new this.bookModel(createBookDto);
 
     return await newBook.save();
   }
 
+  /**
+   * Crea più libri nel database.
+   * @param createBookDtos - Un array di dati dei libri da creare.
+   * @returns Una promessa che restituisce un array di documenti dei libri creati.
+   */
   async createMultipleBooks(
     createBookDtos: CreateBookDto[],
   ): Promise<BookDocument[]> {
     console.log('Create multiple Books');
 
     const createdBooks = [];
-    const existingISBNs = new Set<string>();
     const messages = [];
 
     try {
-      // Cerca tutti i libri ma richiede solo il campo ISBN
-      const existingBooks = await this.bookModel.find({}, 'ISBN').exec();
-      // Aggiunge al set tutti gli ISBN dei libri registrati.
-      existingBooks.forEach((book) => existingISBNs.add(book.ISBN));
-
       for (const bookDto of createBookDtos) {
-        // Se un ISBN presente nel DTO è incluso nel set existingISBNs
-        if (existingISBNs.has(bookDto.ISBN)) {
-          // Passa al prossimo libro
+        // Verifica se un libro con lo stesso ISBN esiste già nel database
+        if (await this.checkISBN(bookDto.ISBN)) {
+          // Genera un messaggio di avviso
           console.log(
             `Book with ISBN ${bookDto.ISBN} already exists. Skipping...`,
           );
@@ -53,6 +77,7 @@ export class BookService {
             ISBN: `${bookDto.ISBN}`,
             message: `Book with ISBN ${bookDto.ISBN} already exists.`,
           });
+          // Passa al prossimo libro
           continue;
         }
 
@@ -65,6 +90,7 @@ export class BookService {
       throw error;
     }
 
+    // Aggiunge i messaggi alla lista dei libri creati
     createdBooks.push({ messages });
 
     return createdBooks;
