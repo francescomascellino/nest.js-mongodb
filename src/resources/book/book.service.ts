@@ -149,6 +149,8 @@ export class BookService {
     return book;
   }
 
+  // TO DO ADD UPDATE MULTIPLE BOOKS
+
   async remove(id: string): Promise<BookDocument> {
     console.log(`Delete One. Book ID: ${id}`);
 
@@ -160,6 +162,10 @@ export class BookService {
 
     return book;
   }
+
+  // TODO ADD REMOVE MULTIPLE BOOKS
+
+  // TO DO SOFTDELETES?
 
   async loanedBooks(): Promise<BookDocument[]> {
     console.log(`Find all loaned Books`);
