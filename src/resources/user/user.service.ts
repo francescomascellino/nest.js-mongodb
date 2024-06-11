@@ -192,6 +192,14 @@ export class UserService {
     return user;
   }
 
+  /**
+   * Cerca un utente per nome utente, accessibile solo agli amministratori.
+   *
+   * @param requestingUser L'utente che effettua la richiesta.
+   * @param username Il nome utente dell'utente da cercare.
+   * @returns Il documento dell'utente trovato, se l'utente che effettua la richiesta è un amministratore; altrimenti, null.
+   * @throws UnauthorizedException Se l'utente che effettua la richiesta non è un amministratore.
+   */
   async adminFiindByUsername(
     requestingUser,
     username: string,
@@ -203,7 +211,7 @@ export class UserService {
       .findById(requestingUser.userId)
       .exec();
 
-    // Ricava il ruolo dell'utente che sta effettuando la richiesta
+    // Ottiene il ruolo dell'utente che sta effettuando la richiesta
     const userRole = requester.role;
 
     console.log('requester role:', userRole);
@@ -219,6 +227,13 @@ export class UserService {
     return this.userModel.findOne({ username }).exec();
   }
 
+  /**
+   * Trova un utente per nome utente.
+   * Utilizzato in src/resources/auth/auth.controller.ts - async login( )
+   *
+   * @param username Il nome utente dell'utente da cercare.
+   * @returns Il documento dell'utente trovato, se esiste; altrimenti, null.
+   */
   async findByUsername(username: string): Promise<UserDocument | null> {
     console.log(`Find by Username. Username: ${username}`);
     return this.userModel.findOne({ username }).exec();

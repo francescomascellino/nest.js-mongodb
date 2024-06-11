@@ -11,15 +11,28 @@ export class AuthController {
     private readonly userService: UserService,
   ) {}
 
+  /**
+   * Effettua l'accesso per un utente.
+   * Prima effettua una validazione usando il metodo authService.validateUser()
+   * Se la validazione è positiva richiama il metodo authService.login()
+   *
+   * @param loginDto L'oggetto contenente le credenziali di accesso dell'utente.
+   * @returns Un oggetto contenente il token di accesso JWT se l'accesso è riuscito, altrimenti genera un'eccezione di autorizzazione.
+   */
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
+    // Controlla se le credenziali di accesso dell'utente sono valide
     const user = await this.authService.validateUser(
       loginDto.username,
       loginDto.password,
     );
+
+    // Se le credenziali sono valide, genera il token di accesso JWT e lo restituisce
     if (!user) {
       throw new UnauthorizedException();
     }
+
+    // Se le credenziali non sono valide, genera un'eccezione di autorizzazione
     return this.authService.login(user);
   }
 

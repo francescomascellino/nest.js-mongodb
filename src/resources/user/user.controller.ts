@@ -74,6 +74,13 @@ export class UserController {
     return this.userService.remove(id);
   }
 
+  /**
+   * Trova un utente per nome utente, accessibile solo agli amministratori.
+   *
+   * @param req La richiesta HTTP che contiene le informazioni sull'utente che effettua la richiesta.
+   * @param username Il nome utente dell'utente da cercare.
+   * @returns Il documento dell'utente trovato, se l'utente che effettua la richiesta è un amministratore; altrimenti, null.
+   */
   @UseGuards(JwtAuthGuard)
   @Get('/admin/search/:username')
   findByUsername(
