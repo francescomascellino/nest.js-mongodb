@@ -15,6 +15,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDocument } from './schemas/user.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+/**
+ * Interfaccia che estende l'interfaccia Request di Express per includere le informazioni dell'utente autenticato.
+ * Questa interfaccia viene utilizzata per assicurare che le informazioni dell'utente siano disponibili in tutte le richieste
+ * che richiedono autenticazione.
+ *
+ * @property user Contiene le informazioni del documento utente autenticato, includendo tutti i campi del modello UserDocument.
+ */
 export interface ExtendedRequest extends Request {
   user: UserDocument;
 }
@@ -40,6 +47,15 @@ export class UserController {
     return this.userService.findOne(id);
   }
 
+  /**
+   * Endpoint che permette di aggiornare le informazioni di un utente.
+   * Utilizza il JwtAuthGuard per proteggere l'endpoint e richiede un token JWT valido.
+   *
+   * @param req Oggetto della richiesta che include i dettagli dell'utente che sta facendo la richiesta
+   * @param id String. L'ID dell'utente da aggiornare
+   * @param updateUserDto DTO che contiene le nuove informazioni da aggiornare per l'utente
+   * @returns Il documento aggiornato dell'utente
+   */
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
@@ -64,6 +80,13 @@ export class UserController {
     return this.userService.findByUsername(id);
   }
 
+  /**
+   * Gestisce la richiesta per prendere in prestito un libro da parte di un utente.
+   *
+   * @param userId L'ID dell'utente che vuole prendere in prestito il libro.
+   * @param bookId L'ID del libro che si vuole prendere in prestito.
+   * @returns Il documento dell'utente aggiornato.
+   */
   @Post(':userId/borrow/:bookId')
   async borrowBook(
     @Param('userId') userId: string,
@@ -72,6 +95,13 @@ export class UserController {
     return this.userService.borrowBook(userId, bookId);
   }
 
+  /**
+   * Gestisce la richiesta per restituire un libro preso in prestito da parte di un utente.
+   *
+   * @param userId L'ID dell'utente che vuole restituire il libro.
+   * @param bookId L'ID del libro che si vuole restituire.
+   * @returns Il documento dell'utente aggiornato.
+   */
   @Post(':userId/return/:bookId')
   async returnBook(
     @Param('userId') userId: string,
