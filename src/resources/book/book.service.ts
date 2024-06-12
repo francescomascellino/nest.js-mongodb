@@ -266,7 +266,10 @@ export class BookService {
         }
 
         // Elimina fisicamente il libro dal database
-        await this.bookModel.findByIdAndDelete(bookId);
+        // await this.bookModel.findByIdAndDelete(bookId);
+
+        // Soft delete del libro
+        book.is_deleted = true;
 
         deletedBooks.push(book);
       } catch (error) {
