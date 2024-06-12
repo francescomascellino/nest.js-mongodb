@@ -86,7 +86,9 @@ export class UserService {
 
     // Controlla se il libro è stato eliminato
     if (book.is_deleted) {
-      throw new NotFoundException(`Book with ID ${bookId} has been deleted`);
+      throw new NotFoundException(
+        `Book with ID ${bookId} has been deleted. Can not loan book from Recycle Bin`,
+      );
     }
 
     // Controlla se il libro è già in prestito dall'utente
