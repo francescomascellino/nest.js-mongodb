@@ -28,12 +28,6 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('bulk')
-  createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
-    return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(): Promise<BookDocument[]> {
     return this.bookService.findAll();
@@ -67,10 +61,17 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('bulk')
-  updateMultiple(@Body() updateMultipleBooksDto: UpdateMultipleBooksDto) {
-    // TO DO: UPDATE MULTIPLE BOOKS
-    return 'Update multiple books';
+  @Post('bulk/create')
+  createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+    return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('bulk/update')
+  updateMultiple(
+    @Body() updateMultipleBooksDto: UpdateMultipleBooksDto,
+  ): Promise<BookDocument[]> {
+    return this.bookService.updateMultipleBooks(updateMultipleBooksDto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -80,9 +81,10 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('bulk')
-  removeMultiple(@Body() deleteMultipleBooksDto: DeleteMultipleBooksDto) {
-    // TO DO: REMOVE MULTIPLE BOOKS
-    return 'REmove multiple books';
+  @Delete('bulk/delete')
+  removeMultiple(
+    @Body() deleteMultipleBooksDto: DeleteMultipleBooksDto,
+  ): Promise<BookDocument[]> {
+    return this.bookService.removeMultipleBooks(deleteMultipleBooksDto.bookIds);
   }
 }

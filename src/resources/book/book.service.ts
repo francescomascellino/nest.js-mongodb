@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { Book, BookDocument } from './schemas/book.schema';
+import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
 // import { User, UserDocument } from '../user/schemas/user.schema';
 
 @Injectable()
@@ -149,7 +150,64 @@ export class BookService {
     return book;
   }
 
-  // TO DO ADD UPDATE MULTIPLE BOOKS
+  /**
+   * Aggiorna più libri con dati specifici per ciascun libro.
+   *
+   * @param updateDtos Un array di oggetti che contiene l'ID del libro e i dati da aggiornare.
+   * @returns Un array di documenti dei libri aggiornati.
+   * @throws NotFoundException Se un libro non viene trovato.
+   */
+  async updateMultipleBooks(
+    updateDtos: UpdateMultipleBooksDto,
+  ): Promise<BookDocument[]> {
+    console.log(`Update Multiple Books`);
+
+    const updatedBooks = [];
+
+    // Itera su ogni oggetto nell'array updates
+    /* 
+    Riassunto decontruction + spread
+    updateDtos.updates è un array di oggetti:
+    {
+      "id": "6668479e1e78c11602d5032c",
+      "title": "Harry Potter e la Pietra Filosofale",
+      "author": "J.K. Rowling",
+      "ISBN": "9788877827021"
+    }
+    for (const { id, ...updateData } of updateDtos.updates) significa che per ogni oggetto nell'array updateDtos.updates viene estratta la proprietà id e assegnata alla variabile id.
+    Tutte le altre proprietà dell'oggetto (come title, author, ISBN, ecc.) vengono "espanse" in un nuovo oggetto e assegnate alla variabile updateData.
+    Durante l'iterazione dell'esempio succede:
+    { id, ...updateData }
+    id diventa "6668479e1e78c11602d5032c"
+    updateData diventa:
+    {
+      "title": "Harry Potter e la Pietra Filosofale",
+      "author": "J.K. Rowling",
+      "ISBN": "9788877827021"
+    }
+    */
+    for (const { id, ...updateData } of updateDtos.updates) {
+      console.log(`Updating book with ID: ${id}`, updateData);
+
+      // Trova e aggiorna il libro nel database
+      const updatedBook = await this.bookModel
+        .findByIdAndUpdate(id, updateData, { new: true })
+        .exec();
+
+      // Se il libro non viene trovato, invia un'eccezione
+      if (!updatedBook) {
+        throw new NotFoundException(`Book with ID ${id} not found`);
+      }
+
+      // Aggiunge il libro aggiornato all'array updatedBooks
+      updatedBooks.push(updatedBook);
+    }
+
+    // Restituisce l'array di libri aggiornati
+    console.log(`Updated Books:`, updatedBooks);
+
+    return updatedBooks;
+  }
 
   async remove(id: string): Promise<BookDocument> {
     console.log(`Delete One. Book ID: ${id}`);
@@ -163,7 +221,27 @@ export class BookService {
     return book;
   }
 
-  // TODO ADD REMOVE MULTIPLE BOOKS
+  async removeMultipleBooks(bookIds: string[]): Promise<BookDocument[]> {
+    console.log(`Delete Multiple Books`);
+
+    const deletedBooks = [];
+
+    for (const bookId of bookIds) {
+      // const book = await this.bookModel.findByIdAndDelete(bookId);
+
+      const book = await this.bookModel.findByIdAndDelete(bookId);
+
+      if (!book) {
+        throw new NotFoundException(`Book with ID ${bookId} not found`);
+      }
+
+      deletedBooks.push(book);
+    }
+
+    console.log('Deleted Books:', deletedBooks);
+
+    return deletedBooks;
+  }
 
   // TO DO SOFTDELETES?
 
