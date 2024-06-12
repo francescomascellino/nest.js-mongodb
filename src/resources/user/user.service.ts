@@ -84,6 +84,11 @@ export class UserService {
     const user = await this.findUserById(userId);
     const book = await this.findBookById(bookId);
 
+    // Controlla se il libro è stato eliminato
+    if (book.is_deleted) {
+      throw new NotFoundException(`Book with ID ${bookId} has been deleted`);
+    }
+
     // Controlla se il libro è già in prestito dall'utente
     if (this.userHasBorrowedBook(user, bookId)) {
       throw new ConflictException(
