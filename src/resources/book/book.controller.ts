@@ -46,6 +46,12 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('delete')
+  async getSoftDeleted(): Promise<BookDocument[]> {
+    return this.bookService.getSoftDeleted();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string): Promise<BookDocument> {
     return this.bookService.findOne(id);
@@ -75,9 +81,21 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete(':id')
+  @Delete('/delete/:id')
   remove(@Param('id') id: string): Promise<BookDocument> {
     return this.bookService.remove(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('delete/:id')
+  softDelete(@Param('id') id: string): Promise<BookDocument> {
+    return this.bookService.softDelete(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('restore/:id')
+  restore(@Param('id') id: string): Promise<BookDocument> {
+    return this.bookService.restore(id);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -101,7 +101,9 @@ export class BookService {
     console.log('Find all Books');
 
     const books = await this.bookModel
-      .find()
+      .find({
+        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
+      })
       .populate({
         path: 'loaned_to',
         select: 'name',
@@ -243,7 +245,46 @@ export class BookService {
     return deletedBooks;
   }
 
-  // TO DO SOFTDELETES?
+  async softDelete(id: string): Promise<BookDocument> {
+    console.log(`Soft delete. Book ID: ${id}`);
+    const book = await this.bookModel.findByIdAndUpdate(
+      id,
+      { is_deleted: true },
+      { new: true },
+    );
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+    return book;
+  }
+
+  async restore(id: string): Promise<BookDocument> {
+    console.log(`Restore. Book ID: ${id}`);
+    const book = await this.bookModel.findByIdAndUpdate(
+      id,
+      { is_deleted: false },
+      { new: true },
+    );
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+    return book;
+  }
+
+  async getSoftDeleted(): Promise<BookDocument[]> {
+    console.log('Find all Soft Deleted Books');
+
+    const books = await this.bookModel
+      .find({ is_deleted: true })
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
+
+    return books;
+  }
 
   async loanedBooks(): Promise<BookDocument[]> {
     console.log(`Find all loaned Books`);

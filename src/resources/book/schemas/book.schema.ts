@@ -17,6 +17,9 @@ export class Book {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   public ISBN!: string;
 
+  @Prop({ default: false })
+  public is_deleted: boolean;
+
   // User.name è una proprietà del modello User che contiene il nome del modello.
   // ref: User.name dice a Mongoose che il campo a cui è applicato fa riferimento al modello User
   // @Prop({ type: Types.ObjectId, ref: User.name })
