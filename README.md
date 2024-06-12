@@ -1189,3 +1189,690 @@ Header:
 ```makefile
 Authorization: Bearer <your-jwt-token>
 ```
+
+# Extra
+
+## Soft Delete
+
+Metodo per eliminare temporeaneamente
+
+***src/resources/book/book.service.ts***
+```ts
+async softDelete(id: string): Promise<BookDocument> {
+  // Trova il libro nel database
+  const book = await this.bookModel.findById(id);
+
+  // Verifica se il libro esiste
+  if (!book) {
+    throw new NotFoundException(`Book with ID ${id} not found`);
+  }
+
+  // Controlla se il libro è in prestito
+  if (book.loaned_to) {
+    throw new ConflictException(`Book with ID ${id} is currently on loan`);
+  }
+
+  // Soft delete del libro impostando is_deleted su true
+  book.is_deleted = true;
+  return await book.save();
+}
+```
+
+***src/resources/book/book.controller.ts***
+```ts
+@UseGuards(JwtAuthGuard)
+@Patch('delete/:id')
+softDelete(@Param('id') id: string): Promise<BookDocument> {
+  return this.bookService.softDelete(id);
+}
+```
+
+## Restore
+
+Per ripristinare elementi cancellati temporaneamente
+
+***src/resources/book/book.service.ts***
+```ts
+async restore(id: string): Promise<BookDocument> {
+  console.log(`Restore. Book ID: ${id}`);
+  const book = await this.bookModel.findByIdAndUpdate(
+    id,
+    { is_deleted: false },
+    { new: true },
+  );
+  if (!book) {
+    throw new NotFoundException(`Book with ID ${id} not found`);
+  }
+  return book;
+}
+```
+
+***src/resources/book/book.controller.ts***
+```ts
+@UseGuards(JwtAuthGuard)
+@Patch('restore/:id')
+restore(@Param('id') id: string): Promise<BookDocument> {
+  return this.bookService.restore(id);
+}
+```
+
+## Ottenere gli elementi nel cestino (Soft Deleted)
+
+***src/resources/book/book.service.ts***
+```ts
+async getSoftDeleted(): Promise<BookDocument[]> {
+  console.log('Find all Soft Deleted Books');
+
+  const books = await this.bookModel
+    .find({ is_deleted: true }) // Recupera solo gli elementi is_deleted
+    .populate({
+      path: 'loaned_to',
+      select: 'name',
+      model: 'User',
+    })
+    .exec();
+
+  return books;
+}
+```
+
+***src/resources/book/book.controller.ts***
+```ts
+// POSIZIONARE PRIMA DI GET BY ID
+@UseGuards(JwtAuthGuard)
+@Get('delete')
+async getSoftDeleted(): Promise<BookDocument[]> {
+  return this.bookService.getSoftDeleted();
+}
+
+@UseGuards(JwtAuthGuard)
+@Get(':id')
+findOne(@Param('id') id: string): Promise<BookDocument> {
+  return this.bookService.findOne(id);
+}
+```
+## Evitare che vengano mostrati elementi Softt Deleted
+
+***src/resources/book/book.service.ts***
+```ts
+import { Model } from 'mongoose';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { Book, BookDocument } from './schemas/book.schema';
+import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
+
+@Injectable()
+export class BookService {
+  constructor(
+    @InjectModel(Book.name) private bookModel: Model<BookDocument>,
+
+  ) {}
+
+  async findAll(): Promise<BookDocument[]> {
+    console.log('Find all Books');
+
+    const books = await this.bookModel
+      .find({
+        // Recupera solo i documenti in cui is_deleted ancora non esiste o è 'false'
+        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
+      })
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
+
+    return books;
+  }
+
+  async findOne(id: string): Promise<BookDocument> {
+    console.log(`Find One. Book ID: ${id}`);
+
+    const book = await this.bookModel
+      .findById(id)
+      // Recupera solo i documenti in cui is_deleted ancora non esiste o è 'false'
+      .or([{ is_deleted: { $exists: false } }, { is_deleted: false }])
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
+
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+
+    console.log(`Found "${book.title}"`);
+
+    return book;
+  }
+
+  async availableBooks(): Promise<BookDocument[]> {
+    return this.bookModel
+      .find({
+        // Recupera solo i documenti in cui is_deleted ancora non esiste o è 'false'
+        $or: [{ loaned_to: null }, { loaned_to: { $size: 0 } }],
+      })
+      .exec();
+  }
+}
+```
+
+## Eliminare più documenti contemporaneamente
+
+***src/resources/book/dto/delete-multiple-books.dto.ts***
+```ts
+import { IsArray, IsString } from 'class-validator';
+
+export class DeleteMultipleBooksDto {
+  @IsArray()
+  @IsString({ each: true })
+  bookIds: string[];
+}
+```
+
+***src/resources/book/book.service.ts***
+```ts
+/**
+ * Rimuove più libri dal database.
+ * Controlla se i libri esistono e se sono attualmente in prestito.
+ *
+ * @param bookIds Un array di ID di libri da eliminare.
+ * @returns Una promessa che risolve un oggetto contenente due array:
+ *          - `deletedBooks`: libri eliminati con successo
+ *          - `errors`: errori riscontrati durante l'eliminazione dei libri
+ */
+async removeMultipleBooks(
+  bookIds: string[],
+): Promise<{ deletedBooks: BookDocument[]; errors: any[] }> {
+  console.log(`Delete Multiple Books`);
+
+  const deletedBooks = [];
+  const errors = [];
+
+  for (const bookId of bookIds) {
+    try {
+      const book = await this.bookModel.findById(bookId);
+
+      if (!book) {
+        errors.push({ bookId, error: `Book with ID ${bookId} not found` });
+        continue;
+      }
+
+      if (book.loaned_to) {
+        errors.push({
+          bookId,
+          error: `Book with ID ${bookId} is currently on loan`,
+        });
+        continue;
+      }
+
+      // Elimina fisicamente il libro dal database
+      // await this.bookModel.findByIdAndDelete(bookId);
+
+      // oppure:
+      // Soft delete del libro
+      book.is_deleted = true;
+
+      deletedBooks.push(book);
+    } catch (error) {
+      errors.push({ bookId, error: error.message });
+    }
+  }
+
+  console.log('Deleted Books:', deletedBooks);
+  console.log('Errors:', errors);
+
+  return { deletedBooks, errors };
+}
+```
+***src/resources/book/book.controller.ts***
+```ts
+/**
+ * Rimuove più libri dal database.
+ * Questo metodo è protetto da autenticazione JWT.
+ *
+ * @param deleteMultipleBooksDto Un DTO che contiene un array di ID di libri da eliminare.
+ * @returns Una promessa che risolve un oggetto contenente due array:
+ *          - `deletedBooks`: libri eliminati con successo
+ *          - `errors`: errori riscontrati durante l'eliminazione dei libri
+ */
+@UseGuards(JwtAuthGuard)
+@Delete('bulk/delete')
+removeMultiple(
+  @Body() deleteMultipleBooksDto: DeleteMultipleBooksDto,
+): Promise<{ deletedBooks: BookDocument[]; errors: any[] }> {
+  return this.bookService.removeMultipleBooks(deleteMultipleBooksDto.bookIds);
+}
+```
+
+Esempio body della request:
+```json
+{
+    "bookIds": ["66605047a9a8d2847d5b85d6", "6669a48fbb5e7f44fed60cc3"]
+}
+```
+
+## Creare più elementi contemporaneamente
+
+***src/resources/book/dto/create-multiple-books.dto.ts***
+```ts
+import { IsArray, ArrayMinSize, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateBookDto } from './create-book.dto';
+
+export class CreateMultipleBooksDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateBookDto)
+  books: CreateBookDto[];
+}
+```
+
+***src/resources/book/book.service.ts***
+```ts
+/**
+ * Verifica se un libro con un dato ISBN esiste nel database.
+ * @param ISBN - Il codice ISBN del libro da verificare.
+ * @returns Una promessa che restituisce true se il libro esiste, altrimenti false.
+ */
+private async checkISBN(ISBN: string): Promise<boolean> {
+  const existingBook = await this.bookModel.findOne({ ISBN }).exec();
+  // Restituisce true se esiste un libro con lo stesso ISBN, altrimenti false
+  return !!existingBook;
+}
+
+/**
+ * Crea più libri nel database.
+ * @param createBookDtos - Un array di dati dei libri da creare.
+ * @returns Una promessa che restituisce un array di documenti dei libri creati.
+ */
+async createMultipleBooks(
+  createBookDtos: CreateBookDto[],
+): Promise<BookDocument[]> {
+  console.log('Create multiple Books');
+
+  const createdBooks = [];
+  const messages = [];
+
+  try {
+    for (const bookDto of createBookDtos) {
+      // Verifica se un libro con lo stesso ISBN esiste già nel database
+      if (await this.checkISBN(bookDto.ISBN)) {
+        // Genera un messaggio di avviso
+        console.log(
+          `Book with ISBN ${bookDto.ISBN} already exists. Skipping...`,
+        );
+        messages.push({
+          ISBN: `${bookDto.ISBN}`,
+          message: `Book with ISBN ${bookDto.ISBN} already exists.`,
+        });
+        // Passa al prossimo libro
+        continue;
+      }
+
+      const newBook = new this.bookModel(bookDto);
+      const createdBook = await newBook.save();
+      createdBooks.push(createdBook);
+    }
+  } catch (error) {
+    console.error('Error creating books:', error);
+    throw error;
+  }
+
+  // Aggiunge i messaggi alla lista dei libri creati
+  createdBooks.push({ messages });
+
+  return createdBooks;
+}
+```
+
+***src/resources/book/book.controller.ts***
+```ts
+@UseGuards(JwtAuthGuard)
+@Post('bulk/create')
+createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+  return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
+}
+```
+
+Esempio body della request:
+```json
+{
+  "books": [
+    {
+      "title": "Harry Potter e la Pietra Filosofale",
+      "author": "J.K. Rowling",
+      "ISBN": "9788877827021"
+    },
+    {
+      "title": "Cronache del ghiaccio e del fuoco - Il Trono di Spade",
+      "author": "George R.R. Martin",
+      "ISBN": "9788804644124"
+    },
+    {
+      "title": "1984",
+      "author": "George Orwell",
+      "ISBN": "9788817106405"
+    },
+    {
+      "title": "Il Grande Gatsby",
+      "author": "F. Scott Fitzgerald",
+      "ISBN": "9788845290909"
+    },
+    {
+      "title": "Orgoglio e Pregiudizio",
+      "author": "Jane Austen",
+      "ISBN": "9788807900228"
+    }
+  ]
+}
+```
+
+## Modificare più elementi contemporaneamente
+
+***src/resources/book/dto/update-multiple-books.dto.ts***
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateBookDto } from './create-book.dto';
+import { Type } from 'class-transformer';
+import { IsArray, ArrayMinSize, ValidateNested } from 'class-validator';
+
+// Per aggiornare libri multipli abbiamo bisogno venga fornito anche l'ID di ogni libro
+class UpdateBookWithIdDto extends PartialType(CreateBookDto) {
+  id: string;
+}
+export class UpdateMultipleBooksDto extends PartialType(CreateBookDto) {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateBookDto)
+  updates: UpdateBookWithIdDto[];
+}
+```
+
+***src/resources/book/book.service.ts***
+```ts
+/**
+ * Aggiorna più libri con dati specifici per ciascun libro.
+ *
+ * @param updateDtos Un array di oggetti che contiene l'ID del libro e i dati da aggiornare.
+ * @returns Un array di documenti dei libri aggiornati.
+ * @throws NotFoundException Se un libro non viene trovato.
+ */
+async updateMultipleBooks(
+  updateDtos: UpdateMultipleBooksDto,
+): Promise<BookDocument[]> {
+  console.log(`Update Multiple Books`);
+
+  const updatedBooks = [];
+
+  // Itera su ogni oggetto nell'array updates
+  /* 
+  Riassunto decontruction + spread
+  updateDtos.updates è un array di oggetti:
+  {
+    "id": "6668479e1e78c11602d5032c",
+    "title": "Harry Potter e la Pietra Filosofale",
+    "author": "J.K. Rowling",
+    "ISBN": "9788877827021"
+  }
+  for (const { id, ...updateData } of updateDtos.updates) significa che per ogni oggetto nell'array updateDtos.updates viene estratta la proprietà id e assegnata alla variabile id.
+  Tutte le altre proprietà dell'oggetto (come title, author, ISBN, ecc.) vengono "espanse" in un nuovo oggetto e assegnate alla variabile updateData.
+  Durante l'iterazione dell'esempio succede:
+  { id, ...updateData }
+  id diventa "6668479e1e78c11602d5032c"
+  updateData diventa:
+  {
+    "title": "Harry Potter e la Pietra Filosofale",
+    "author": "J.K. Rowling",
+    "ISBN": "9788877827021"
+  }
+  */
+  for (const { id, ...updateData } of updateDtos.updates) {
+    console.log(`Updating book with ID: ${id}`, updateData);
+
+    // Trova e aggiorna il libro nel database
+    const updatedBook = await this.bookModel
+    .findByIdAndUpdate(id, updateData, { new: true })
+    .exec();
+
+    // Se il libro non viene trovato, invia un'eccezione
+    if (!updatedBook) {
+    throw new NotFoundException(`Book with ID ${id} not found`);
+  }
+
+    // Aggiunge il libro aggiornato all'array updatedBooks
+    updatedBooks.push(updatedBook);
+  }
+
+  // Restituisce l'array di libri aggiornati
+  console.log(`Updated Books:`, updatedBooks);
+
+  return updatedBooks;
+}
+```
+
+***src/resources/book/book.controller.ts***
+```ts
+@UseGuards(JwtAuthGuard)
+@Post('bulk/create')
+createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+  return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
+}
+```
+
+Esempio body della request:
+```json
+{
+  "books": [
+    {
+      "title": "Harry Potter e la Pietra Filosofale",
+      "author": "J.K. Rowling",
+      "ISBN": "9788877827021"
+    },
+    {
+      "title": "Cronache del ghiaccio e del fuoco - Il Trono di Spade",
+      "author": "George R.R. Martin",
+      "ISBN": "9788804644124"
+    },
+    {
+      "title": "1984",
+      "author": "George Orwell",
+      "ISBN": "9788817106405"
+    },
+    {
+      "title": "Il Grande Gatsby",
+      "author": "F. Scott Fitzgerald",
+      "ISBN": "9788845290909"
+    },
+    {
+      "title": "Orgoglio e Pregiudizio",
+      "author": "Jane Austen",
+      "ISBN": "9788807900228"
+    }
+  ]
+}
+```
+
+## Prendere in prestito un libro
+
+***src/resources/user/user.service.ts***
+```ts
+/**
+ * Trova un utente per ID.
+ * @param userId L'ID dell'utente da trovare.
+ * @returns Il documento dell'utente.
+ * @throws NotFoundException Se l'utente non viene trovato.
+ */
+private async findUserById(userId: string): Promise<UserDocument> {
+  // Converte userId in ObjectId
+  const userObjectId = new Types.ObjectId(userId);
+  // Trova l'utente nel database tramite il suo ObjectId
+  const user = await this.userModel.findById(userObjectId).exec();
+  if (!user) {
+    throw new NotFoundException(`User with ID ${userId} not found`);
+  }
+  return user;
+}
+
+/**
+ * Trova un libro per ID.
+ * @param bookId L'ID del libro da trovare.
+ * @returns Il documento del libro.
+ * @throws NotFoundException Se il libro non viene trovato.
+ */
+private async findBookById(bookId: string): Promise<BookDocument> {
+  // Converte bookId in ObjectId
+  const bookObjectId = new Types.ObjectId(bookId);
+  // Trova il libro nel database tramite il suo ObjectId
+  const book = await this.bookModel.findById(bookObjectId).exec();
+  if (!book) {
+    throw new NotFoundException(`Book with ID ${bookId} not found`);
+  }
+  return book;
+}
+
+/**
+ * Controlla se un utente ha preso in prestito un determinato libro.
+ * @param user L'utente da controllare.
+ * @param bookId L'ID del libro.
+ * @returns true se l'utente ha preso in prestito il libro, altrimenti false.
+ */
+private userHasBorrowedBook(user: UserDocument, bookId: string): boolean {
+  const bookObjectId = new Types.ObjectId(bookId);
+  // Controlla se l'array books_on_loan contiene l'ObjectId del libro
+  return user.books_on_loan.some((id) =>
+    new Types.ObjectId(id).equals(bookObjectId),
+  );
+}
+
+/**
+ * Permette a un utente di prendere in prestito un libro.
+ * Controlla se l'utente e il libro esistono, se il libro è già in prestito
+ * e se l'utente ha già preso in prestito lo stesso libro.
+ *
+ * @param userId L'ID dell'utente che vuole prendere in prestito il libro
+ * @param bookId L'ID del libro che si vuole prendere in prestito
+ * @returns Il documento aggiornato dell'utente dopo aver preso in prestito il libro
+ * @throws NotFoundException Se l'utente o il libro non vengono trovati
+ * @throws ConflictException Se il libro è già in prestito o se l'utente ha già preso in prestito lo stesso libro
+ */
+async borrowBook(userId: string, bookId: string): Promise<UserDocument> {
+  // Trova l'utente e il libro nel database tramite i loro ObjectId
+  const user = await this.findUserById(userId);
+  const book = await this.findBookById(bookId);
+
+  // Controlla se il libro è stato eliminato
+  if (book.is_deleted) {
+    throw new NotFoundException(
+      `Book with ID ${bookId} has been deleted. Can not loan book from Recycle Bin`,
+    );
+  }
+
+  // Controlla se il libro è già in prestito dall'utente
+  if (this.userHasBorrowedBook(user, bookId)) {
+    throw new ConflictException(
+      `User already borrowed the book with ID ${bookId}`,
+    );
+  }
+
+  // Controlla se il libro è già stato preso in prestito da un altro utente
+  if (book.loaned_to) {
+    throw new ConflictException(`Book with ID ${bookId} is already on loan`);
+  }
+
+  // Assegna l'utente al libro
+  book.loaned_to = user._id;
+  // Assegna il libro all'utente
+  user.books_on_loan.push(book._id);
+
+  // Salva le modifiche al database
+  await book.save();
+  return await user.save();
+}
+```
+
+***src/resources/user/user.controller.ts***
+```ts
+/**
+ * Gestisce la richiesta per prendere in prestito un libro da parte di un utente.
+ *
+ * @param userId L'ID dell'utente che vuole prendere in prestito il libro.
+ * @param bookId L'ID del libro che si vuole prendere in prestito.
+ * @returns Il documento dell'utente aggiornato.
+ */
+@Post(':userId/borrow/:bookId')
+async borrowBook(
+  @Param('userId') userId: string,
+  @Param('bookId') bookId: string,
+): Promise<UserDocument> {
+  return this.userService.borrowBook(userId, bookId);
+}
+```
+
+## Ritornare un libro preso in prestito 
+***src/resources/user/user.service.ts***
+```ts
+/**
+ * Permette a un utente di restituire un libro preso in prestito.
+ * Controlla se l'utente e il libro esistono, se l'utente ha preso in prestito il libro
+ * e se il libro è attualmente preso in prestito dall'utente.
+ *
+ * @param userId L'ID dell'utente che vuole restituire il libro
+ * @param bookId L'ID del libro che si vuole restituire
+ * @returns Il documento aggiornato dell'utente dopo aver restituito il libro
+ * @throws NotFoundException Se l'utente o il libro non vengono trovati
+ * @throws ConflictException Se l'utente non ha preso in prestito il libro o se il libro non è attualmente preso in prestito dall'utente
+ */
+async returnBook(userId: string, bookId: string): Promise<UserDocument> {
+  // Trova l'utente e il libro nel database tramite i loro ObjectId
+  const user = await this.findUserById(userId);
+  const book = await this.findBookById(bookId);
+
+  // Verifica se l'utente ha preso in prestito il libro
+  if (!this.userHasBorrowedBook(user, bookId)) {
+    // Lancia un'eccezione se l'utente non ha preso in prestito il libro
+    throw new ConflictException(
+      `User did not borrow the book with ID ${bookId}`,
+    );
+  }
+
+  // Rimuove il libro dalla lista dei libri presi in prestito dall'utente
+  user.books_on_loan = user.books_on_loan.filter(
+    (id) => !new Types.ObjectId(id).equals(book._id),
+  );
+  book.loaned_to = null;
+
+  // Salva le modifiche al database
+  await book.save();
+  return await user.save();
+}
+```
+
+***src/resources/user/user.controller.ts***
+```ts
+/**
+ * Gestisce la richiesta per restituire un libro preso in prestito da parte di un utente.
+ *
+ * @param userId L'ID dell'utente che vuole restituire il libro.
+ * @param bookId L'ID del libro che si vuole restituire.
+ * @returns Il documento dell'utente aggiornato.
+ */
+@Post(':userId/return/:bookId')
+async returnBook(
+  @Param('userId') userId: string,
+  @Param('bookId') bookId: string,
+): Promise<UserDocument> {
+  return this.userService.returnBook(userId, bookId);
+}
+```
