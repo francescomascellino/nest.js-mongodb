@@ -119,6 +119,7 @@ export class BookService {
 
     const book = await this.bookModel
       .findById(id)
+      .or([{ is_deleted: { $exists: false } }, { is_deleted: false }])
       .populate({
         path: 'loaned_to',
         select: 'name',
@@ -214,48 +215,88 @@ export class BookService {
   async remove(id: string): Promise<BookDocument> {
     console.log(`Delete One. Book ID: ${id}`);
 
-    const book = await this.bookModel.findByIdAndDelete(id);
+    // Trova il libro nel database
+    const book = await this.bookModel.findById(id);
 
+    // Verifica se il libro esiste
     if (!book) {
       throw new NotFoundException(`Book with ID ${id} not found`);
     }
 
-    return book;
+    // Controlla se il libro è in prestito
+    if (book.loaned_to) {
+      throw new ConflictException(`Book with ID ${id} is currently on loan`);
+    }
+
+    return await this.bookModel.findByIdAndDelete(id);
   }
 
-  async removeMultipleBooks(bookIds: string[]): Promise<BookDocument[]> {
+  /**
+   * Rimuove più libri dal database.
+   * Controlla se i libri esistono e se sono attualmente in prestito.
+   *
+   * @param bookIds Un array di ID di libri da eliminare.
+   * @returns Una promessa che risolve un oggetto contenente due array:
+   *          - `deletedBooks`: libri eliminati con successo
+   *          - `errors`: errori riscontrati durante l'eliminazione dei libri
+   */
+  async removeMultipleBooks(
+    bookIds: string[],
+  ): Promise<{ deletedBooks: BookDocument[]; errors: any[] }> {
     console.log(`Delete Multiple Books`);
 
     const deletedBooks = [];
+    const errors = [];
 
     for (const bookId of bookIds) {
-      // const book = await this.bookModel.findByIdAndDelete(bookId);
+      try {
+        const book = await this.bookModel.findById(bookId);
 
-      const book = await this.bookModel.findByIdAndDelete(bookId);
+        if (!book) {
+          errors.push({ bookId, error: `Book with ID ${bookId} not found` });
+          continue;
+        }
 
-      if (!book) {
-        throw new NotFoundException(`Book with ID ${bookId} not found`);
+        if (book.loaned_to) {
+          errors.push({
+            bookId,
+            error: `Book with ID ${bookId} is currently on loan`,
+          });
+          continue;
+        }
+
+        // Elimina fisicamente il libro dal database
+        await this.bookModel.findByIdAndDelete(bookId);
+
+        deletedBooks.push(book);
+      } catch (error) {
+        errors.push({ bookId, error: error.message });
       }
-
-      deletedBooks.push(book);
     }
 
     console.log('Deleted Books:', deletedBooks);
+    console.log('Errors:', errors);
 
-    return deletedBooks;
+    return { deletedBooks, errors };
   }
 
   async softDelete(id: string): Promise<BookDocument> {
-    console.log(`Soft delete. Book ID: ${id}`);
-    const book = await this.bookModel.findByIdAndUpdate(
-      id,
-      { is_deleted: true },
-      { new: true },
-    );
+    // Trova il libro nel database
+    const book = await this.bookModel.findById(id);
+
+    // Verifica se il libro esiste
     if (!book) {
       throw new NotFoundException(`Book with ID ${id} not found`);
     }
-    return book;
+
+    // Controlla se il libro è in prestito
+    if (book.loaned_to) {
+      throw new ConflictException(`Book with ID ${id} is currently on loan`);
+    }
+
+    // Soft delete del libro impostando is_deleted su true
+    book.is_deleted = true;
+    return await book.save();
   }
 
   async restore(id: string): Promise<BookDocument> {

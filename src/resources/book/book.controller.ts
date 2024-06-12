@@ -98,11 +98,20 @@ export class BookController {
     return this.bookService.restore(id);
   }
 
+  /**
+   * Rimuove più libri dal database.
+   * Questo metodo è protetto da autenticazione JWT.
+   *
+   * @param deleteMultipleBooksDto Un DTO che contiene un array di ID di libri da eliminare.
+   * @returns Una promessa che risolve un oggetto contenente due array:
+   *          - `deletedBooks`: libri eliminati con successo
+   *          - `errors`: errori riscontrati durante l'eliminazione dei libri
+   */
   @UseGuards(JwtAuthGuard)
   @Delete('bulk/delete')
   removeMultiple(
     @Body() deleteMultipleBooksDto: DeleteMultipleBooksDto,
-  ): Promise<BookDocument[]> {
+  ): Promise<{ deletedBooks: BookDocument[]; errors: any[] }> {
     return this.bookService.removeMultipleBooks(deleteMultipleBooksDto.bookIds);
   }
 }
