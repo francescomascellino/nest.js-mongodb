@@ -8,7 +8,7 @@ export type BookDocument = HydratedDocument<Book>;
 
 @Schema()
 export class Book {
-  @Prop({ required: true, minlength: 3, type: String })
+  @Prop({ required: true, minlength: 2, type: String })
   public title!: string;
 
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })

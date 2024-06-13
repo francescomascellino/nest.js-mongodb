@@ -2,7 +2,7 @@ import { IsString, MinLength, IsNotEmpty } from 'class-validator';
 
 export class CreateBookDto {
   @IsString()
-  @MinLength(3)
+  @MinLength(2)
   @IsNotEmpty()
   public title: string;
 
