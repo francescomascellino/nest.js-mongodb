@@ -60,11 +60,11 @@ export class BookService {
    */
   async createMultipleBooks(
     createBookDtos: CreateBookDto[],
-  ): Promise<BookDocument[]> {
+  ): Promise<{ createdBooks: BookDocument[]; errors: any[] }> {
     console.log('Create multiple Books');
 
     const createdBooks = [];
-    const messages = [];
+    const errors = [];
 
     try {
       for (const bookDto of createBookDtos) {
@@ -74,7 +74,7 @@ export class BookService {
           console.log(
             `Book with ISBN ${bookDto.ISBN} already exists. Skipping...`,
           );
-          messages.push({
+          errors.push({
             ISBN: `${bookDto.ISBN}`,
             message: `Book with ISBN ${bookDto.ISBN} already exists.`,
           });
@@ -91,10 +91,7 @@ export class BookService {
       throw error;
     }
 
-    // Aggiunge i messaggi alla lista dei libri creati
-    createdBooks.push({ messages });
-
-    return createdBooks;
+    return { createdBooks, errors };
   }
 
   async findAll(): Promise<BookDocument[]> {
@@ -162,13 +159,14 @@ export class BookService {
    */
   async updateMultipleBooks(
     updateDtos: UpdateMultipleBooksDto,
-  ): Promise<BookDocument[]> {
+  ): Promise<{ updatedBooks: BookDocument[]; errors: any[] }> {
     console.log(`Update Multiple Books`);
 
     const updatedBooks = [];
+    const errors = [];
 
     // Itera su ogni oggetto nell'array updates
-    /* 
+    /*
     Riassunto decontruction + spread
     updateDtos.updates è un array di oggetti:
     {
@@ -192,24 +190,32 @@ export class BookService {
     for (const { id, ...updateData } of updateDtos.updates) {
       console.log(`Updating book with ID: ${id}`, updateData);
 
-      // Trova e aggiorna il libro nel database
-      const updatedBook = await this.bookModel
-        .findByIdAndUpdate(id, updateData, { new: true })
-        .exec();
+      try {
+        // Trova e aggiorna il libro nel database
+        const updatedBook = await this.bookModel
+          .findByIdAndUpdate(id, updateData, { new: true })
+          .exec();
 
-      // Se il libro non viene trovato, invia un'eccezione
-      if (!updatedBook) {
-        throw new NotFoundException(`Book with ID ${id} not found`);
+        // Se il libro non viene trovato, invia un'eccezione
+        if (!updatedBook) {
+          // throw new NotFoundException(`Book with ID ${id} not found`);
+          errors.push({ id, error: `Book with ID ${id} not found` });
+          continue;
+        }
+
+        // Aggiunge il libro aggiornato all'array updatedBooks
+        updatedBooks.push(updatedBook);
+      } catch (error) {
+        errors.push({ id, error: error.message });
+        continue;
       }
-
-      // Aggiunge il libro aggiornato all'array updatedBooks
-      updatedBooks.push(updatedBook);
     }
 
     // Restituisce l'array di libri aggiornati
     console.log(`Updated Books:`, updatedBooks);
+    console.log('Errors:', errors);
 
-    return updatedBooks;
+    return { updatedBooks, errors };
   }
 
   async remove(id: string): Promise<BookDocument> {
@@ -251,6 +257,7 @@ export class BookService {
     for (const bookId of bookIds) {
       try {
         const book = await this.bookModel.findById(bookId);
+        console.log(`Deleting book with ID: ${bookId}`);
 
         if (!book) {
           errors.push({ bookId, error: `Book with ID ${bookId} not found` });
@@ -274,6 +281,7 @@ export class BookService {
         deletedBooks.push(book);
       } catch (error) {
         errors.push({ bookId, error: error.message });
+        continue;
       }
     }
 

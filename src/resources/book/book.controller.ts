@@ -68,7 +68,9 @@ export class BookController {
 
   @UseGuards(JwtAuthGuard)
   @Post('bulk/create')
-  createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+  createMultiple(
+    @Body() createMultipleBooksDto: CreateMultipleBooksDto,
+  ): Promise<{ createdBooks: BookDocument[]; errors: any[] }> {
     return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
   }
 
@@ -76,7 +78,7 @@ export class BookController {
   @Patch('bulk/update')
   updateMultiple(
     @Body() updateMultipleBooksDto: UpdateMultipleBooksDto,
-  ): Promise<BookDocument[]> {
+  ): Promise<{ updatedBooks: BookDocument[]; errors: any[] }> {
     return this.bookService.updateMultipleBooks(updateMultipleBooksDto);
   }
 
