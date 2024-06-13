@@ -207,7 +207,6 @@ export class BookService {
         updatedBooks.push(updatedBook);
       } catch (error) {
         errors.push({ id, error: error.message });
-        continue;
       }
     }
 
@@ -281,7 +280,6 @@ export class BookService {
         deletedBooks.push(book);
       } catch (error) {
         errors.push({ bookId, error: error.message });
-        continue;
       }
     }
 

@@ -1498,11 +1498,11 @@ private async checkISBN(ISBN: string): Promise<boolean> {
  */
 async createMultipleBooks(
   createBookDtos: CreateBookDto[],
-): Promise<BookDocument[]> {
+): Promise<{ createdBooks: BookDocument[]; errors: any[] }> {
   console.log('Create multiple Books');
 
   const createdBooks = [];
-  const messages = [];
+  const errors = [];
 
   try {
     for (const bookDto of createBookDtos) {
@@ -1529,10 +1529,7 @@ async createMultipleBooks(
     throw error;
   }
 
-  // Aggiunge i messaggi alla lista dei libri creati
-  createdBooks.push({ messages });
-
-  return createdBooks;
+  return { createdBooks, errors };
 }
 ```
 
@@ -1540,7 +1537,9 @@ async createMultipleBooks(
 ```ts
 @UseGuards(JwtAuthGuard)
 @Post('bulk/create')
-createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
+createMultiple(
+  @Body() createMultipleBooksDto: CreateMultipleBooksDto,
+): Promise<{ createdBooks: BookDocument[]; errors: any[] }> {
   return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
 }
 ```
@@ -1611,10 +1610,11 @@ export class UpdateMultipleBooksDto extends PartialType(CreateBookDto) {
  */
 async updateMultipleBooks(
   updateDtos: UpdateMultipleBooksDto,
-): Promise<BookDocument[]> {
+): Promise<{ updatedBooks: BookDocument[]; errors: any[] }> {
   console.log(`Update Multiple Books`);
 
   const updatedBooks = [];
+  const errors = [];
 
   // Itera su ogni oggetto nell'array updates
   /* 
@@ -1641,33 +1641,42 @@ async updateMultipleBooks(
   for (const { id, ...updateData } of updateDtos.updates) {
     console.log(`Updating book with ID: ${id}`, updateData);
 
-    // Trova e aggiorna il libro nel database
-    const updatedBook = await this.bookModel
-    .findByIdAndUpdate(id, updateData, { new: true })
-    .exec();
+    try {
+      // Trova e aggiorna il libro nel database
+      const updatedBook = await this.bookModel
+        .findByIdAndUpdate(id, updateData, { new: true })
+        .exec();
 
-    // Se il libro non viene trovato, invia un'eccezione
-    if (!updatedBook) {
-    throw new NotFoundException(`Book with ID ${id} not found`);
-  }
+      // Se il libro non viene trovato, invia un'eccezione
+      if (!updatedBook) {
+        // throw new NotFoundException(`Book with ID ${id} not found`);
+        errors.push({ id, error: `Book with ID ${id} not found` });
+        continue;
+      }
 
-    // Aggiunge il libro aggiornato all'array updatedBooks
-    updatedBooks.push(updatedBook);
+      // Aggiunge il libro aggiornato all'array updatedBooks
+      updatedBooks.push(updatedBook);
+    } catch (error) {
+      errors.push({ id, error: error.message });
+    }
   }
 
   // Restituisce l'array di libri aggiornati
   console.log(`Updated Books:`, updatedBooks);
+  console.log('Errors:', errors);
 
-  return updatedBooks;
+  return { updatedBooks, errors };
 }
 ```
 
 ***src/resources/book/book.controller.ts***
 ```ts
 @UseGuards(JwtAuthGuard)
-@Post('bulk/create')
-createMultiple(@Body() createMultipleBooksDto: CreateMultipleBooksDto) {
-  return this.bookService.createMultipleBooks(createMultipleBooksDto.books);
+@Patch('bulk/update')
+updateMultiple(
+  @Body() updateMultipleBooksDto: UpdateMultipleBooksDto,
+): Promise<{ updatedBooks: BookDocument[]; errors: any[] }> {
+  return this.bookService.updateMultipleBooks(updateMultipleBooksDto);
 }
 ```
 
