@@ -14,7 +14,7 @@ export class Book {
   @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
   public author!: string;
 
-  @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
+  @Prop({ required: true, maxlength: 13, minlength: 13, type: String })
   public ISBN!: string;
 
   @Prop({ default: false })

@@ -8,7 +8,7 @@ async function bootstrap() {
   // Configura CORS per accettare solo le richieste dall'URL specificato
   app.enableCors({
     origin: 'http://localhost:5173', // Imposta l'URL del tuo frontend
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Metodi HTTP consentiti
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], // Metodi HTTP consentiti
     allowedHeaders: ['Content-Type', 'Authorization'], // Intestazioni consentite
     preflightContinue: false,
     optionsSuccessStatus: 204,
