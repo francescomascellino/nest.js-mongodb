@@ -1885,3 +1885,135 @@ async returnBook(
   return this.userService.returnBook(userId, bookId);
 }
 ```
+
+## Paginazione
+
+Installare il plugin di paginazione
+```bash
+npm install mongoose-paginate-v2
+```
+
+Modificare lo Schema
+```ts
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+
+// Importiamo il plugin di paginazione
+import * as mongoosePaginate from 'mongoose-paginate-v2';
+
+export type BookDocument = HydratedDocument<Book>;
+
+@Schema()
+export class Book {
+  @Prop({ required: true, minlength: 2, type: String })
+  public title!: string;
+
+  @Prop({ required: true, maxlength: 50, minlength: 3, type: String })
+  public author!: string;
+
+  @Prop({ required: true, maxlength: 13, minlength: 13, type: String })
+  public ISBN!: string;
+
+  @Prop({ default: false })
+  public is_deleted: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  loaned_to: Types.ObjectId | null;
+}
+
+export const BookSchema = SchemaFactory.createForClass(Book);
+
+// Applichiamo il plugin allo schema
+BookSchema.plugin(mongoosePaginate);
+```
+
+Modifichiamoil servizio
+```ts
+import {
+  // Importiamo i moduli di paginazione
+  PaginateModel,
+  PaginateResult,
+} from 'mongoose';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { Book, BookDocument } from './schemas/book.schema';
+import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
+
+@Injectable()
+export class BookService {
+  constructor(
+    // Modifichiamo l'iniezione del modello
+    @InjectModel(Book.name) private bookModel: PaginateModel<BookDocument>,
+  ) {}
+
+  async findAll(
+    page: number = 1,
+    pageSize: number = 10,
+  ): Promise<PaginateResult<BookDocument>> {
+    console.log(`Find all Books - Page: ${page}, PageSize: ${pageSize}`);
+
+    const options = {
+      page: page,
+      limit: pageSize,
+      populate: {
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      },
+      query: {
+        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
+      },
+    };
+
+    const books = await this.bookModel.paginate({}, options);
+
+    return books;
+  }
+}
+```
+
+Modifichiamo il controller
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query, // Importiamo il decoratore Query
+} from '@nestjs/common';
+import { BookService } from './book.service';
+import { CreateBookDto } from './dto/create-book.dto';
+import { CreateMultipleBooksDto } from './dto/create-multiple-books.dto';
+import { DeleteMultipleBooksDto } from './dto/delete-multiple-books.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
+import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
+import { BookDocument } from './schemas/book.schema';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginateResult } from 'mongoose'; // Importiamo il modulo di paginazione
+
+@Controller('book')
+export class BookController {
+  constructor(private readonly bookService: BookService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll(
+    @Query('page') page: number,
+    @Query('pageSize') pageSize: number,
+  ): Promise<PaginateResult<BookDocument>> {
+    const pageNumber = page ? Number(page) : 1;
+    const pageSizeNumber = pageSize ? Number(pageSize) : 10;
+    return this.bookService.findAll(pageNumber, pageSizeNumber);
+  }
+}
+```

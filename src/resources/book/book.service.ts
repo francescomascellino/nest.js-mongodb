@@ -1,4 +1,8 @@
-import { Model } from 'mongoose';
+import {
+  // Model,
+  PaginateModel,
+  PaginateResult,
+} from 'mongoose';
 import {
   ConflictException,
   Injectable,
@@ -14,7 +18,7 @@ import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
 @Injectable()
 export class BookService {
   constructor(
-    @InjectModel(Book.name) private bookModel: Model<BookDocument>,
+    @InjectModel(Book.name) private bookModel: PaginateModel<BookDocument>,
 
     // Inietta il modello User che abbiamo reso disponibile in UserModule e importato in BookModule
     // @InjectModel(User.name) private userModel: Model<UserDocument>,
@@ -94,19 +98,37 @@ export class BookService {
     return { createdBooks, errors };
   }
 
-  async findAll(): Promise<BookDocument[]> {
-    console.log('Find all Books');
+  async findAll(
+    page: number = 1,
+    pageSize: number = 10,
+  ): Promise<PaginateResult<BookDocument>> {
+    console.log(`Find all Books - Page: ${page}, PageSize: ${pageSize}`);
 
-    const books = await this.bookModel
-      .find({
-        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
-      })
-      .populate({
+    const options = {
+      page: page,
+      limit: pageSize,
+      populate: {
         path: 'loaned_to',
         select: 'name',
         model: 'User',
-      })
-      .exec();
+      },
+      query: {
+        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
+      },
+    };
+
+    const books = await this.bookModel.paginate({}, options);
+
+    /*     const books = await this.bookModel
+          .find({
+            $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
+          })
+          .populate({
+            path: 'loaned_to',
+            select: 'name',
+            model: 'User',
+          })
+          .exec(); */
 
     return books;
   }

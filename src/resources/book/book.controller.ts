@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { BookService } from './book.service';
 import { CreateBookDto } from './dto/create-book.dto';
@@ -16,6 +17,7 @@ import { UpdateBookDto } from './dto/update-book.dto';
 import { UpdateMultipleBooksDto } from './dto/update-multiple-books.dto';
 import { BookDocument } from './schemas/book.schema';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginateResult } from 'mongoose';
 
 @Controller('book')
 export class BookController {
@@ -28,9 +30,18 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get()
+  /*   @Get()
   async findAll(): Promise<BookDocument[]> {
     return this.bookService.findAll();
+  } */
+  @Get()
+  async findAll(
+    @Query('page') page: number,
+    @Query('pageSize') pageSize: number,
+  ): Promise<PaginateResult<BookDocument>> {
+    const pageNumber = page ? Number(page) : 1;
+    const pageSizeNumber = pageSize ? Number(pageSize) : 10;
+    return this.bookService.findAll(pageNumber, pageSizeNumber);
   }
 
   @UseGuards(JwtAuthGuard)

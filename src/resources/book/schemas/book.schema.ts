@@ -4,6 +4,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 // import { User } from 'src/resources/user/schemas/user.schema';
 
+// Importiamo il plugin di paginazione
+import * as mongoosePaginate from 'mongoose-paginate-v2';
+
 export type BookDocument = HydratedDocument<Book>;
 
 @Schema()
@@ -30,6 +33,9 @@ export class Book {
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);
+
+// Applichiamo il plugin allo schema
+BookSchema.plugin(mongoosePaginate);
 
 /* 
 TO ADD RELATION WITH USER:
