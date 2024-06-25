@@ -347,17 +347,21 @@ export class BookService {
     return book;
   }
 
-  async getSoftDeleted(): Promise<BookDocument[]> {
+  async getSoftDeleted(
+    page: number = 1,
+    pageSize: number = 10,
+  ): Promise<PaginateResult<BookDocument>> {
+    console.log(`Find all Books - Page: ${page}, PageSize: ${pageSize}`);
     console.log('Find all Soft Deleted Books');
 
-    const books = await this.bookModel
-      .find({ is_deleted: true })
-      .populate({
-        path: 'loaned_to',
-        select: 'name',
-        model: 'User',
-      })
-      .exec();
+    const options = {
+      page,
+      limit: pageSize,
+    };
+
+    const query = { is_deleted: true };
+
+    const books = await this.bookModel.paginate(query, options);
 
     return books;
   }

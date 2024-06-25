@@ -58,8 +58,13 @@ export class BookController {
 
   @UseGuards(JwtAuthGuard)
   @Get('delete')
-  async getSoftDeleted(): Promise<BookDocument[]> {
-    return this.bookService.getSoftDeleted();
+  async getSoftDeleted(
+    @Query('page') page: number,
+    @Query('pageSize') pageSize: number,
+  ): Promise<PaginateResult<BookDocument>> {
+    const pageNumber = page ? Number(page) : 1;
+    const pageSizeNumber = pageSize ? Number(pageSize) : 10;
+    return this.bookService.getSoftDeleted(pageNumber, pageSizeNumber);
   }
 
   @UseGuards(JwtAuthGuard)
