@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   // Model,
   PaginateModel,
@@ -23,7 +22,7 @@ export class BookService {
 
     // Inietta il modello User che abbiamo reso disponibile in UserModule e importato in BookModule
     // @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) { }
+  ) {}
 
   /**
    * Verifica se un libro con un dato ISBN esiste nel database.
@@ -107,10 +106,7 @@ export class BookService {
 
     // SEPERIAMOI FILTRI DA options PER NON ANDARE IN CONFLITTO CON PAGNINATE
     const filter = {
-      $or: [
-        { is_deleted: { $exists: false } },
-        { is_deleted: false },
-      ],
+      $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
     };
 
     const options = {
