@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   // Model,
   PaginateModel,
@@ -22,7 +23,7 @@ export class BookService {
 
     // Inietta il modello User che abbiamo reso disponibile in UserModule e importato in BookModule
     // @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) {}
+  ) { }
 
   /**
    * Verifica se un libro con un dato ISBN esiste nel database.
@@ -104,22 +105,30 @@ export class BookService {
   ): Promise<PaginateResult<BookDocument>> {
     console.log(`Find all Books - Page: ${page}, PageSize: ${pageSize}`);
 
+    // SEPERIAMOI FILTRI DA options PER NON ANDARE IN CONFLITTO CON PAGNINATE
+    const filter = {
+      $or: [
+        { is_deleted: { $exists: false } },
+        { is_deleted: false },
+      ],
+    };
+
     const options = {
-      page: page,
+      page,
       limit: pageSize,
       populate: {
         path: 'loaned_to',
         select: 'name',
         model: 'User',
       },
-      query: {
-        $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
-      },
     };
 
-    const books = await this.bookModel.paginate({}, options);
+    const books = await this.bookModel.paginate(filter, options);
 
-    /*     const books = await this.bookModel
+    return books;
+
+    /*     
+    const books = await this.bookModel
           .find({
             $or: [{ is_deleted: { $exists: false } }, { is_deleted: false }],
           })
@@ -128,9 +137,8 @@ export class BookService {
             select: 'name',
             model: 'User',
           })
-          .exec(); */
-
-    return books;
+          .exec(); 
+    */
   }
 
   async findOne(id: string): Promise<BookDocument> {
