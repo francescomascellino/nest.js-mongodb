@@ -159,6 +159,29 @@ export class BookService {
     return book;
   }
 
+  async findOneSoftDeleted(id: string): Promise<BookDocument> {
+    console.log(`Find One. Book ID: ${id}`);
+
+    const book = await this.bookModel
+      .findById(id)
+      .where('is_deleted')
+      .equals(true)
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
+      .exec();
+
+    if (!book) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+
+    console.log(`Found "${book.title}"`);
+
+    return book;
+  }
+
   async update(
     id: string,
     updateBookDto: UpdateBookDto,

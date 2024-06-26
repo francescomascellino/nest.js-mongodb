@@ -99,6 +99,12 @@ export class BookController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('/delete/:id')
+  findOneSoftDeleted(@Param('id') id: string): Promise<BookDocument> {
+    return this.bookService.findOneSoftDeleted(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete('/delete/:id')
   remove(@Param('id') id: string): Promise<BookDocument> {
     return this.bookService.remove(id);
