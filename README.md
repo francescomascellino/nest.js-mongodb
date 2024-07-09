@@ -528,7 +528,12 @@ export class BookService {
       .find({ loaned_to: { $ne: [] } })
 
       // Popola il campo loaned_to con il campo name trovato nel documento a cui fa riferimento l'id (loaned_to è un type: Types.ObjectId, ref: User.name).
-      .populate('loaned_to', 'name')
+      // .populate('loaned_to', 'name')
+      .populate({
+        path: 'loaned_to',
+        select: 'name',
+        model: 'User',
+      })
       .exec();
 
     return loanedBooks;
